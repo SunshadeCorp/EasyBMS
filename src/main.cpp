@@ -92,6 +92,27 @@ void reconnect() {
             client.publish((mac_topic + "/module_topic").c_str(), module_topic.c_str(), true);
             client.publish((mac_topic + "/version").c_str(), VERSION, true);
             client.publish((mac_topic + "/build_timestamp").c_str(), BUILD_TIMESTAMP, true);
+            client.publish((mac_topic + "/wifi").c_str(), WiFi.SSID().c_str(), true);
+            client.publish((mac_topic + "/ip").c_str(), WiFi.localIP().toString().c_str(), true);
+            client.publish((mac_topic + "/esp_sdk").c_str(), EspClass::getFullVersion().c_str(), true);
+            client.publish((mac_topic + "/cpu").c_str(), (
+                    String(EspClass::getChipId(), HEX) +
+                    " " +
+                    EspClass::getCpuFreqMHz() + " MHz"
+            ).c_str(), true);
+            client.publish((mac_topic + "/flash").c_str(), (
+                    String(EspClass::getFlashChipId(), HEX) +
+                    ", " +
+                    (EspClass::getFlashChipSize() / 1024 / 1024) +
+                    " of " +
+                    (EspClass::getFlashChipRealSize() / 1024 / 1024) +
+                    " MiB, Mode: " +
+                    EspClass::getFlashChipMode() +
+                    ", Speed: " +
+                    (EspClass::getFlashChipSpeed() / 1000 / 1000) +
+                    " MHz, Vendor: " +
+                    String(EspClass::getFlashChipVendorId(), HEX)
+            ).c_str(), true);
             // ... and resubscribe
             client.subscribe("master/uptime");
             for (int i = 0; i < 12; ++i) {
