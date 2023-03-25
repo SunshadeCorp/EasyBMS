@@ -32,7 +32,7 @@ as well as Adafruit raw 1.8" TFT display
 #define TFT_CS     D8
 #define TFT_RST    D7  // you can also connect this to the Arduino reset
                        // in which case, set this #define pin to -1!
-#define TFT_DC     D6
+#define TFT_DC   D6
 #define TFT_SCLK D1   // set these to be whatever pins you like!
 #define TFT_MOSI D2   // set these to be whatever pins you like!
 
@@ -42,7 +42,9 @@ as well as Adafruit raw 1.8" TFT display
 // to use the microSD card (see the image drawing example)
 
 // For 1.44" and 1.8" TFT with ST7735 use
-Adafruit_ST7735 tft = Adafruit_ST7735(TFT_CS,  TFT_DC, TFT_RST);
+//Adafruit_ST7735 tft = Adafruit_ST7735(TFT_CS,  TFT_DC, TFT_RST);
+Adafruit_ST7735 tft = Adafruit_ST7735(TFT_CS, TFT_DC, TFT_MOSI, TFT_SCLK, TFT_RST);
+
 
 // For 1.54" TFT with ST7789
 //Adafruit_ST7789 tft = Adafruit_ST7789(TFT_CS,  TFT_DC, TFT_RST);
@@ -55,82 +57,6 @@ Adafruit_ST7735 tft = Adafruit_ST7735(TFT_CS,  TFT_DC, TFT_RST);
 
 float p = 3.1415926;
 
-void setup(void) {
-  Serial.begin(9600);
-  Serial.print("Hello! ST77xx TFT Test");
-
-  // Use this initializer if you're using a 1.8" TFT
-  //tft.initR(INITR_BLACKTAB);   // initialize a ST7735S chip, black tab
-
-  // Use this initializer (uncomment) if you're using a 1.44" TFT
-  tft.initR(INITR_144GREENTAB);   // initialize a ST7735S chip, black tab
-
-  // Use this initializer (uncomment) if you're using a 0.96" 180x60 TFT
-  //tft.initR(INITR_MINI160x80);   // initialize a ST7735S chip, mini display
-
-  // Use this initializer (uncomment) if you're using a 1.54" 240x240 TFT
-//  tft.init(128, 128);   // initialize a ST7789 chip, 240x240 pixels
-
-  Serial.println("Initialized");
-
-  uint16_t time = millis();
-  tft.fillScreen(ST77XX_BLACK);
-  time = millis() - time;
-
-  Serial.println(time, DEC);
-  delay(500);
-
-  // large block of text
-  tft.fillScreen(ST77XX_BLACK);
-  testdrawtext("Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur adipiscing ante sed nibh tincidunt feugiat. Maecenas enim massa, fringilla sed malesuada et, malesuada sit amet turpis. Sed porttitor neque ut ante pretium vitae malesuada nunc bibendum. Nullam aliquet ultrices massa eu hendrerit. Ut sed nisi lorem. In vestibulum purus a tortor imperdiet posuere. ", ST77XX_WHITE);
-  delay(1000);
-
-  // tft print function!
-  tftPrintTest();
-  delay(4000);
-
-  // a single pixel
-  tft.drawPixel(tft.width()/2, tft.height()/2, ST77XX_GREEN);
-  delay(500);
-
-  // line draw test
-  testlines(ST77XX_YELLOW);
-  delay(500);
-
-  // optimized lines
-  testfastlines(ST77XX_RED, ST77XX_BLUE);
-  delay(500);
-
-  testdrawrects(ST77XX_GREEN);
-  delay(500);
-
-  testfillrects(ST77XX_YELLOW, ST77XX_MAGENTA);
-  delay(500);
-
-  tft.fillScreen(ST77XX_BLACK);
-  testfillcircles(10, ST77XX_BLUE);
-  testdrawcircles(10, ST77XX_WHITE);
-  delay(500);
-
-  testroundrects();
-  delay(500);
-
-  testtriangles();
-  delay(500);
-
-  mediabuttons();
-  delay(500);
-
-  Serial.println("done");
-  delay(1000);
-}
-
-void loop() {
-  tft.invertDisplay(true);
-  delay(500);
-  tft.invertDisplay(false);
-  delay(500);
-}
 void testlines(uint16_t color) {
   tft.fillScreen(ST77XX_BLACK);
   for (int16_t x=0; x < tft.width(); x+=6) {
@@ -173,7 +99,7 @@ void testlines(uint16_t color) {
   }
 }
 
-void testdrawtext(char *text, uint16_t color) {
+void testdrawtext(const char *text, uint16_t color) {
   tft.setCursor(0, 0);
   tft.setTextColor(color);
   tft.setTextWrap(true);
@@ -318,4 +244,82 @@ void mediabuttons() {
   tft.fillRoundRect(69, 98, 20, 45, 5, ST77XX_RED);
   // play color
   tft.fillTriangle(42, 20, 42, 60, 90, 40, ST77XX_GREEN);
+}
+
+void loop() {
+  tft.invertDisplay(true);
+  delay(500);
+  tft.invertDisplay(false);
+  delay(500);
+}
+
+void setup(void) {
+  Serial.begin(74880);
+  Serial.print("Hello! ST77xx TFT Test");
+
+  // Use this initializer if you're using a 1.8" TFT
+  tft.initR(INITR_BLACKTAB);   // initialize a ST7735S chip, black tab
+
+  // Use this initializer (uncomment) if you're using a 1.44" TFT
+  //tft.initR(INITR_144GREENTAB);   // initialize a ST7735S chip, black tab
+
+  // Use this initializer (uncomment) if you're using a 0.96" 180x60 TFT
+  //tft.initR(INITR_MINI160x80);   // initialize a ST7735S chip, mini display
+
+  // Use this initializer (uncomment) if you're using a 1.54" 240x240 TFT
+//  tft.init(128, 128);   // initialize a ST7789 chip, 240x240 pixels
+
+  Serial.println("Initialized");
+
+  uint16_t time = millis();
+  tft.fillScreen(ST77XX_BLACK);
+  time = millis() - time;
+
+  Serial.println(time, DEC);
+  delay(500);
+
+  // large block of text
+  tft.fillScreen(ST77XX_BLACK);
+  String test_text = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur adipiscing ante sed nibh tincidunt feugiat";
+  testdrawtext(test_text.c_str(), ST77XX_WHITE);
+  delay(1000);
+
+  // tft print function!
+  tftPrintTest();
+  delay(4000);
+
+  // a single pixel
+  tft.drawPixel(tft.width()/2, tft.height()/2, ST77XX_GREEN);
+  delay(500);
+
+  // line draw test
+  testlines(ST77XX_YELLOW);
+  delay(500);
+
+  // optimized lines
+  testfastlines(ST77XX_RED, ST77XX_BLUE);
+  delay(500);
+
+  testdrawrects(ST77XX_GREEN);
+  delay(500);
+
+  testfillrects(ST77XX_YELLOW, ST77XX_MAGENTA);
+  delay(500);
+
+  tft.fillScreen(ST77XX_BLACK);
+  testfillcircles(10, ST77XX_BLUE);
+  testdrawcircles(10, ST77XX_WHITE);
+  delay(500);
+
+  testroundrects();
+  delay(500);
+
+  testtriangles();
+  delay(500);
+
+  mediabuttons();
+  delay(500);
+
+  Serial.println("done");
+  delay(1000);
 }
