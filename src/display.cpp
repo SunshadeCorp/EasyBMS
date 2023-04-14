@@ -33,27 +33,71 @@ void draw_cell_voltages(const DisplayData& data) {
   tft.invertDisplay(false);
   delay(500);
   */
-  tft.fillScreen(ST77XX_BLACK);
+  
 
   uint8_t text_size = 1;
   tft.setTextSize(text_size);
   tft.setRotation(1);
   tft.setTextWrap(true);
-  tft.setTextColor(ST77XX_WHITE);
+  tft.setTextColor(0xFFFF, 0x0000);
   tft.setTextWrap(true);
 
+  String display_text;
+
   for (int i = 0; i < 12; i++) {
-    String display_text = String(data.measurements.cell_voltages[i], 3) + "-" + "99mV" + " " + "1:37.5C";
+    display_text = String(data.measurements.cell_voltages[i], 3);
     tft.setCursor(0*8*4*text_size, i*8*text_size);
     tft.print(display_text.c_str());
   }
+  for (int i = 0; i < 12; i++) 
+  {
+    String display_text;
+    if(data.balance_bits[i])
+    {
+      display_text = String("-");
+
+    }
+    else
+    {
+      display_text = String(" ");
+    }
+    tft.setCursor(1*8*4*text_size, i*8*text_size);
+    tft.print(display_text.c_str());
+  }
+
+  display_text = "dif:"+String(data.measurements.cell_diff, 0)+"mV";
+  tft.setCursor(6*8*text_size, 0*8*text_size);
+  tft.print("       ");
+  tft.setCursor(6*8*text_size, 0*8*text_size);
+  tft.print(display_text.c_str());
+
+  display_text = "min:"+String(data.measurements.min_cell_voltage, 3);
+  tft.setCursor(6*8*text_size, 1*8*text_size);
+  tft.print(display_text.c_str());
+
+  display_text = "max:"+String(data.measurements.max_cell_voltage, 3);
+  tft.setCursor(6*8*text_size, 2*8*text_size);
+  tft.print(display_text.c_str());
+
+  display_text = "t1:"+String(data.measurements.module_temp_1, 1);
+  tft.setCursor(6*8*text_size, 3*8*text_size);
+  tft.print(display_text.c_str());
+
+  display_text = "t2:"+String(data.measurements.module_temp_2, 1);
+  tft.setCursor(6*8*text_size, 4*8*text_size);
+  tft.print(display_text.c_str());
+
+  display_text = "ti:"+String(data.measurements.chip_temp, 1);
+  tft.setCursor(6*8*text_size, 5*8*text_size);
+  tft.print(display_text.c_str());
 
   //tft.drawLine(60,0,60, 128, ST77XX_WHITE);
   //testdrawtext(display_text.c_str(), ST77XX_WHITE);
-  delay(10000);
+ 
 }
 
 void setup_display(void) {
   // Use this initializer if you're using a 1.8" TFT
   tft.initR(INITR_BLACKTAB);   // initialize a ST7735S chip, black tab
+  tft.fillScreen(ST77XX_BLACK);
 }
