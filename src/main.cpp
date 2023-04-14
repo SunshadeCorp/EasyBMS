@@ -33,6 +33,7 @@ constexpr unsigned long BLINK_TIME = 5000;
 String hostname;
 String mac_topic;
 String module_topic;
+bool auto_detect_battery_type;
 
 #if SSL_ENABLED
 WiFiClientSecure espClient;
@@ -96,6 +97,18 @@ String flash_description() {
         (EspClass::getFlashChipSpeed() / 1000 / 1000) +
         " MHz, Vendor: " +
         String(EspClass::getFlashChipVendorId(), HEX);
+}
+
+String battery_type_description() {
+    if (battery_type == BatteryType::meb12s) {
+        return "meb12s";
+    } else if (battery_type == BatteryType::meb8s) {
+        return "meb8s";
+    } else if (battery_type == BatteryType::mebAuto) {
+        return "mebAuto";
+    } else {
+        return "invalid";
+    }
 }
 
 void reconnect() {
@@ -259,6 +272,27 @@ Measurements get_measurements() {
     if (!LTC.getCellVoltages(cell_voltages)) {
         pec15_error_count++;
     }
+
+    if (auto_detect_battery_type) {
+        if (cell_voltages[0] >= 0.01f &&
+            cell_voltages[1] >= 0.01f &&
+            cell_voltages[2] >= 0.01f &&
+            cell_voltages[3] >= 0.01f &&
+            cell_voltages[4] < 0.01f &&
+            cell_voltages[5] < 0.01f &&
+            cell_voltages[6] < 0.01f &&
+            cell_voltages[7] < 0.01f &&
+            cell_voltages[8] >= 0.01f &&
+            cell_voltages[9] >= 0.01f &&
+            cell_voltages[10] >= 0.01f &&
+            cell_voltages[11] >= 0.01f)
+        {
+            battery_type = BatteryType::meb8s;
+        } else {
+            battery_type = BatteryType::meb12s;
+        }
+    }
+      
     float raw_voltage_module_temp_1 = LTC.getAuxVoltage(LTC68041::AuxChannel::CHG_GPIO1);
     float raw_voltage_module_temp_2 = LTC.getAuxVoltage(LTC68041::AuxChannel::CHG_GPIO2);
 
@@ -266,6 +300,10 @@ Measurements get_measurements() {
     float voltage_min = cell_voltages[0];
     float voltage_max = cell_voltages[0];
     for (size_t i = 0; i < cell_voltages.size(); i++) {
+        if (battery_type == BatteryType::meb8s && i >=4 && i < 8) {
+            continue;
+        }
+
         sum += cell_voltages[i];
         if (cell_voltages[i] < voltage_min) {
             voltage_min = cell_voltages[i];
@@ -332,6 +370,8 @@ void publish_mqtt_values(const std::bitset<12>& balance_bits, const String& topi
     publish(topic + "/module_voltage", m.module_voltage);
     publish(topic + "/module_temps", String(m.module_temp_1) + "," + String(m.module_temp_2));
     publish(topic + "/chip_temp", m.chip_temp);
+    publish(mac_topic + "/battery_type", battery_type_description());
+    publish(mac_topic + "/auto_detect_battery_type", auto_detect_battery_type);
 }
 
 void callback(char *topic, byte *payload, unsigned int length) {
@@ -461,6 +501,12 @@ void callback(char *topic, byte *payload, unsigned int length) {
         setup_display();
     }
 
+    if (battery_type == BatteryType::mebAuto) {
+        auto_detect_battery_type = true;
+        battery_type = BatteryType::meb12s;
+    } else {
+        auto_detect_battery_type = false;
+    }
 }
 
 bool runTests() {

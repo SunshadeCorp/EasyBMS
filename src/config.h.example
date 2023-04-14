@@ -3,7 +3,7 @@
 #include <pgmspace.h>
 #include "battery_type.h"
 
-BatteryType battery_type = BatteryType::meb12s;
+BatteryType battery_type = BatteryType::mebAuto;
 
 constexpr char ssid[] = "WIFI_SSID";
 constexpr char password[] = "WIFI_PASS";

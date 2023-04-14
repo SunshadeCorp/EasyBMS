@@ -2,5 +2,6 @@
 
 enum class BatteryType {
     meb8s,
-    meb12s
+    meb12s,
+    mebAuto
 };
