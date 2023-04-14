@@ -111,6 +111,16 @@ String battery_type_description() {
     }
 }
 
+String bms_mode_description() {
+    if (bms_mode == BmsMode::single) {
+        return "single";
+    } else if (bms_mode == BmsMode::slave) {
+        return "slave";
+    } else {
+        return "invalid";
+    }
+}
+
 void reconnect() {
     // Loop until we're reconnected
     while (!client.connected()) {
@@ -132,6 +142,7 @@ void reconnect() {
             publish(mac_topic + "/esp_sdk", EspClass::getFullVersion());
             publish(mac_topic + "/cpu", cpu_description());
             publish(mac_topic + "/flash", flash_description());
+            publish(mac_topic + "/bms_mode", bms_mode_description());
             // Resubscribe
             subscribe("master/uptime");
             for (int i = 0; i < 12; ++i) {
@@ -400,7 +411,7 @@ void callback(char *topic, byte *payload, unsigned int length) {
         if (cell_id == -1) {
             return;
         }
-        if (topic_string == module_topic + "/cell/" + cell_name + "/balance_request") {
+        if (topic_string == module_topic + "/cell/" + cell_name + "/balance_request" && bms_mode == BmsMode::slave) {
             unsigned long balance_time = std::stoul(payload_string.c_str());
             cells_to_balance_start.at(cell_id) = millis();
             cells_to_balance_interval.at(cell_id) = balance_time;
