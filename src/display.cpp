@@ -1,4 +1,4 @@
-#include "display.h"
+#include "display.hpp"
 
 // Option 1 (recommended): must use the hardware SPI pins
 // (for UNO thats sclk = 13 and sid = 11) and pin 10 must be

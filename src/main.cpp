@@ -5,9 +5,9 @@
 
 #include "config.h"
 #include "version.h"
-#include "display.h"
-#include "soc.h"
-#include "wifi.h"
+#include "display.hpp"
+#include "soc.hpp"
+#include "wifi.hpp"
 #include "TimedHistory.hpp"
 #include "Measurements.hpp"
 
@@ -456,7 +456,10 @@ void callback(char *topic, byte *payload, unsigned int length) {
 #endif
 
     client.setCallback(callback);
-    setup_display();
+
+    if (use_display) {
+        setup_display();
+    }
 
 }
 
