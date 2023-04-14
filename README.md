@@ -1,4 +1,5 @@
 # EasyBMS
+
 Simple Wifi based BMS for battery modules from EVs
 
 This battery management system is a combination of an openhardware board, the IC LTC6804-1 and a WLAN-enabled controller ESP8266 and a bit of opensource code. 
@@ -16,3 +17,14 @@ Two operating modes
     
 Balancing with relatively low current ~40mA, which is sufficient for EV battery modules.
 All BMS data is provided to MQTT
+
+## Build
+
+- `git clone https://github.com/SunshadeCorp/EasyBMS-slave.git`
+- `cd EasyBMS-slave`
+- `git submodule init`
+- `git submodule update`
+- `cd src`
+- `cp config.h.example config.h`
+- edit `config.h` to your setup
+- build with Visual Studio Code and PlatformIO
