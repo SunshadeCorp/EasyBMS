@@ -4,6 +4,7 @@
 #include "battery_type.h"
 
 BatteryType battery_type = BatteryType::mebAuto;
+BmsMode bms_mode = BmsMode::single;
 
 constexpr char ssid[] = "WIFI_SSID";
 constexpr char password[] = "WIFI_PASS";
@@ -11,8 +12,8 @@ constexpr char mqtt_server[] = "mosquitto.local";
 constexpr uint16_t mqtt_port = 1883;
 constexpr char mqtt_username[] = "mosquitto_user";
 constexpr char mqtt_password[] = "mosquitto_pass";
-constexpr bool use_mqtt = true;
-constexpr bool use_display = false;
+constexpr bool use_mqtt = false;
+constexpr bool use_display = true;
 
 constexpr char ota_server[] = "example.com/ota/";
 const char trustRoot[] PROGMEM = R"CERT(

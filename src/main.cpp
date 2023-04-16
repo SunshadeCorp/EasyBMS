@@ -10,6 +10,7 @@
 #include "wifi.hpp"
 #include "TimedHistory.hpp"
 #include "Measurements.hpp"
+#include "balancing.hpp"
 
 #define DEBUG
 #define SSL_ENABLED false
@@ -520,59 +521,6 @@ void callback(char *topic, byte *payload, unsigned int length) {
     }
 }
 
-bool runTests() {
-    LTC.startCellConvTest(LTC68041::ST_SELF_TEST_1);
-    delay(5);
-
-    std::array<float, 12> cell_voltages_test{};
-    LTC.getCellVoltages(cell_voltages_test);
-
-    for (float pattern: cell_voltages_test) {
-        DEBUG_PRINT("Conversion Test results: ");
-        DEBUG_PRINT(pattern);
-        DEBUG_PRINT(", ");
-    }
-
-    DEBUG_PRINTLN();
-
-    LTC.startOpenWireCheck(LTC68041::PUP_PULL_UP, LTC68041::DCP_DISABLED);
-    delay(5);
-    LTC.startOpenWireCheck(LTC68041::PUP_PULL_UP, LTC68041::DCP_DISABLED);
-    delay(5);
-
-    std::array<float, 12> cell_voltages_pup{};
-    LTC.getCellVoltages(cell_voltages_pup);
-
-    LTC.startOpenWireCheck(LTC68041::PUP_PULL_DOWN, LTC68041::DCP_DISABLED);
-    delay(5);
-    LTC.startOpenWireCheck(LTC68041::PUP_PULL_DOWN, LTC68041::DCP_DISABLED);
-    delay(5);
-
-    std::array<float, 12> cell_voltages_pdown{};
-    LTC.getCellVoltages(cell_voltages_pdown);
-
-    if (cell_voltages_pup[0] < 0.0001) {
-        DEBUG_PRINTLN("C0 is open");
-        return false;
-    }
-
-    if (cell_voltages_pdown[11] < 0.0001) {
-        DEBUG_PRINTLN("C12 is open");
-        return false;
-    }
-
-    for (int i = 1; i < 12; i++) {
-        if ((cell_voltages_pup[i] - cell_voltages_pdown[i]) < -0.4) {
-            DEBUG_PRINT("C");
-            DEBUG_PRINT(i);
-            DEBUG_PRINTLN(" is open");
-            return false;
-        }
-    }
-
-    return true;
-}
-
 void update_display(const std::bitset<12>& balance_bits, const Measurements& m) {
     DisplayData data;
 
@@ -596,11 +544,17 @@ void loop() {
 
     if (millis() - last_ltc_check > LTC_CHECK_INTERVAL) {
         last_ltc_check = millis();
-        std::bitset<12> balance_bits{};
-        set_balance_bits(balance_bits);
-        set_LTC(balance_bits);
-
         Measurements measurements = get_measurements();
+
+        std::bitset<12> balance_bits{};
+        if (bms_mode == BmsMode::slave) {
+            set_balance_bits(balance_bits);
+        } else if (bms_mode == BmsMode::single) {
+            balance_bits = balance_algorithm(measurements.cell_voltages, battery_type);
+        } else {
+            balance_bits = std::bitset<12>(0);
+        }
+        set_LTC(balance_bits);
 
         if (use_mqtt) {
             publish_mqtt_values(balance_bits, module_topic, measurements);
