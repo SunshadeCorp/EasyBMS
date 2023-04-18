@@ -10,7 +10,7 @@
 #include "wifi.hpp"
 #include "TimedHistory.hpp"
 #include "Measurements.hpp"
-#include "balancing.hpp"
+#include "single_mode_balancer.hpp"
 
 #define DEBUG
 #define SSL_ENABLED false
@@ -53,6 +53,7 @@ unsigned long last_blink_time = 0;
 unsigned long long last_master_uptime = 0;
 
 unsigned long pec15_error_count = 0;
+SingleModeBalancer single_balancer = SingleModeBalancer(60*1000, 10*1000);
 
 // Store cell diff history with 1h retention and 1 min granularity
 auto cell_diff_history = TimedHistory<float>(1000*60*60, 1000*60);
@@ -286,23 +287,7 @@ Measurements get_measurements() {
     }
 
     if (auto_detect_battery_type) {
-        if (cell_voltages[0] >= 0.01f &&
-            cell_voltages[1] >= 0.01f &&
-            cell_voltages[2] >= 0.01f &&
-            cell_voltages[3] >= 0.01f &&
-            cell_voltages[4] < 0.01f &&
-            cell_voltages[5] < 0.01f &&
-            cell_voltages[6] < 0.01f &&
-            cell_voltages[7] < 0.01f &&
-            cell_voltages[8] >= 0.01f &&
-            cell_voltages[9] >= 0.01f &&
-            cell_voltages[10] >= 0.01f &&
-            cell_voltages[11] >= 0.01f)
-        {
-            battery_type = BatteryType::meb8s;
-        } else {
-            battery_type = BatteryType::meb12s;
-        }
+        battery_type = detect_battery_type(cell_voltages);
     }
       
     float raw_voltage_module_temp_1 = LTC.getAuxVoltage(LTC68041::AuxChannel::CHG_GPIO1);
@@ -550,7 +535,9 @@ void loop() {
         if (bms_mode == BmsMode::slave) {
             set_balance_bits(balance_bits);
         } else if (bms_mode == BmsMode::single) {
-            balance_bits = balance_algorithm(measurements.cell_voltages, battery_type);
+            single_balancer.update_cell_voltages(measurements.cell_voltages);
+            single_balancer.balance();
+            balance_bits = single_balancer.balance_bits();
         } else {
             balance_bits = std::bitset<12>(0);
         }
