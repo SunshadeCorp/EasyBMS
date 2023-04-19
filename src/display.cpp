@@ -96,7 +96,7 @@ void draw_cell_voltages(const DisplayData& data) {
  
 }
 
-void setup_display(void) {
+void display_init(void) {
   // Use this initializer if you're using a 1.8" TFT
   tft.initR(INITR_BLACKTAB);   // initialize a ST7735S chip, black tab
   tft.fillScreen(ST77XX_BLACK);

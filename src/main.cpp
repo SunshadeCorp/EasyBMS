@@ -1,6 +1,5 @@
 #include <ESP8266httpUpdate.h>
-#include <LTC6804.h>
-#include <LTC6804.cpp> // used for template functions
+#include "ltc_wrapper.hpp"
 #include <PubSubClient.h>
 
 #include "config.h"
@@ -25,11 +24,9 @@
 #define DEBUG_PRINTLN(...)
 #endif
 
-static LTC68041 LTC = LTC68041(D8);
-
 constexpr unsigned long MASTER_TIMEOUT = 5000;
-constexpr unsigned long LTC_CHECK_INTERVAL = 1000;
 constexpr unsigned long BLINK_TIME = 5000;
+constexpr unsigned long LTC_CHECK_INTERVAL = 1000;
 
 String hostname;
 String mac_topic;
@@ -52,7 +49,6 @@ unsigned long last_connection = 0;
 unsigned long last_blink_time = 0;
 unsigned long long last_master_uptime = 0;
 
-unsigned long pec15_error_count = 0;
 SingleModeBalancer single_balancer = SingleModeBalancer(60*1000, 10*1000);
 
 // Store cell diff history with 1h retention and 1 min granularity
@@ -212,7 +208,8 @@ int cell_id_from_name(const String &cell_name) {
     return cell_number - 1;
 }
 
-void set_balance_bits(std::bitset<12> &balance_bits) {
+std::bitset<12> slave_balance_bits() {
+    auto balance_bits = std::bitset<12>();
     for (size_t i = 0; i < cells_to_balance_start.size(); ++i) {
         if (millis() - cells_to_balance_start.at(i) <= cells_to_balance_interval.at(i)) {
             balance_bits.set(i, true);
@@ -220,78 +217,16 @@ void set_balance_bits(std::bitset<12> &balance_bits) {
             cells_to_balance_interval.at(i) = 0;
         }
     }
-}
 
-void set_LTC(std::bitset<12> &balance_bits) {
-    /*
-     * check LTC SPI
-     */
-#ifdef DEBUG
-    if (LTC.checkSPI(true)) {
-#else
-        if (LTC.checkSPI(false)) {
-#endif
-        digitalWrite(D1, HIGH);
-//        DEBUG_PRINTLN();
-//        DEBUG_PRINTLN("SPI ok");
-    } else {
-        digitalWrite(D1, LOW);
-//        DEBUG_PRINTLN();
-//        DEBUG_PRINTLN("SPI lost");
-    }
-
-    LTC.cfgSetRefOn(true);
-    /*
-     * set LTC config
-     */
-    LTC.cfgSetVUV(3.1);
-    LTC.cfgSetVOV(4.2);
-
-    if (balance_bits.any()) {
-        digitalWrite(D2, HIGH);
-    } else {
-        digitalWrite(D2, LOW);
-    }
-    LTC.cfgSetDCC(balance_bits);
-
-    LTC.cfgWrite();
-    //Start different Analog-Digital-Conversions in the Chip
-
-    LTC.startCellConv(LTC68041::DCP_DISABLED);
-    delay(5); //Wait until conversion is finished
-    LTC.startAuxConv();
-    delay(5); //Wait until conversion is finished
-    LTC.startStatusConv();
-    delay(5); //Wait until conversion is finished
-    if (!LTC.cfgRead()) {
-        pec15_error_count++;
-    }
-
-    //Print the clear text values cellVoltage, gpioVoltage, Undervoltage Bits, Overvoltage Bits
-#ifdef DEBUG
-    LTC.readCfgDbg();
-    LTC.readStatusDbg();
-    LTC.readAuxDbg();
-    LTC.readCellsDbg();
-#endif
-}
-
-float raw_voltage_to_real_module_temp(float raw_voltage) {
-    return 32.0513f * raw_voltage - 23.0769f;
+    return balance_bits;
 }
 
 Measurements get_measurements() {
-    std::array<float, 12> cell_voltages{};
-    if (!LTC.getCellVoltages(cell_voltages)) {
-        pec15_error_count++;
-    }
+    std::array<float, 12> cell_voltages = ltc_cell_voltages();
 
     if (auto_detect_battery_type) {
         battery_type = detect_battery_type(cell_voltages);
     }
-      
-    float raw_voltage_module_temp_1 = LTC.getAuxVoltage(LTC68041::AuxChannel::CHG_GPIO1);
-    float raw_voltage_module_temp_2 = LTC.getAuxVoltage(LTC68041::AuxChannel::CHG_GPIO2);
 
     float sum = 0.0f;
     float voltage_min = cell_voltages[0];
@@ -321,10 +256,10 @@ Measurements get_measurements() {
         m.cell_diffs_to_avg[i] = cell_voltages[i] - voltage_avg;
     }
     m.cell_voltages = cell_voltages;
-    m.module_voltage = LTC.getStatusVoltage(LTC68041::CHST_SOC);
-    m.module_temp_1 = raw_voltage_to_real_module_temp(raw_voltage_module_temp_1);
-    m.module_temp_2 = raw_voltage_to_real_module_temp(raw_voltage_module_temp_2);
-    m.chip_temp = LTC.getStatusVoltage(LTC.StatusGroup::CHST_ITMP);
+    m.module_voltage = ltc_module_voltage();
+    m.module_temp_1 = ltc_module_temp_1();
+    m.module_temp_2 = ltc_module_temp_2();
+    m.chip_temp = ltc_chip_temp();
     m.avg_cell_voltage = voltage_avg;
     m.min_cell_voltage = voltage_min;
     m.max_cell_voltage = voltage_max;
@@ -349,12 +284,12 @@ Measurements get_measurements() {
         }
     }
 
-    return m;
+    return m; 
 }
 
 void publish_mqtt_values(const std::bitset<12>& balance_bits, const String& topic, const Measurements& m) {
     publish(module_topic + "/uptime", millis());
-    publish(module_topic + "/pec15_error_count", pec15_error_count);
+    publish(module_topic + "/pec15_error_count", ltc_error_count());
 
     for (size_t i = 0; i < m.cell_voltages.size(); i++) {
         String cell_name = cell_name_from_id(i);
@@ -405,11 +340,10 @@ void callback(char *topic, byte *payload, unsigned int length) {
     } else if (topic_string == module_topic + "/read_accurate") {
         if (payload_string == "1") {
             last_ltc_check = millis();
-            std::bitset<12> balance_bits{};
-            set_balance_bits(balance_bits);
+            std::bitset<12> balance_bits = slave_balance_bits();
             WiFi.forceSleepBegin();
             delay(1);
-            set_LTC(balance_bits);
+            ltc_set_balance_bits(balance_bits);
             WiFi.forceSleepWake();
             delay(1);
             while (WiFi.status() != WL_CONNECTED) {
@@ -486,7 +420,7 @@ void callback(char *topic, byte *payload, unsigned int length) {
     }
 
     randomSeed(micros());
-    LTC.initSPI(D7, D6, D5); //Initialize LTC6804 hardware
+    ltc_init();
 
 #if SSL_ENABLED
     espClient.setTrustAnchors(&mqtt_cert_store);
@@ -495,7 +429,7 @@ void callback(char *topic, byte *payload, unsigned int length) {
     client.setCallback(callback);
 
     if (use_display) {
-        setup_display();
+        display_init();
     }
 
     if (battery_type == BatteryType::mebAuto) {
@@ -533,7 +467,7 @@ void loop() {
 
         std::bitset<12> balance_bits{};
         if (bms_mode == BmsMode::slave) {
-            set_balance_bits(balance_bits);
+            balance_bits = slave_balance_bits();
         } else if (bms_mode == BmsMode::single) {
             single_balancer.update_cell_voltages(measurements.cell_voltages);
             single_balancer.balance();
@@ -541,7 +475,7 @@ void loop() {
         } else {
             balance_bits = std::bitset<12>(0);
         }
-        set_LTC(balance_bits);
+        ltc_set_balance_bits(balance_bits);
 
         if (use_mqtt) {
             publish_mqtt_values(balance_bits, module_topic, measurements);
