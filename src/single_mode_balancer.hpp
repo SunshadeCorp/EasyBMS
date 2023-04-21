@@ -37,7 +37,7 @@ private:
         } else {
             // Balance all the cells above target_voltage
             for(int i = 0; i < 12; i++) {
-                if (_voltages[i] > target) {
+                if (_voltages[i] > target + 0.003) {
                     _balance_bits.set(i);
                 }
                 else {
