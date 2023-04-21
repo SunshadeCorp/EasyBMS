@@ -270,7 +270,7 @@ Measurements get_measurements() {
     // Calculate cell diff trend
     cell_diff_history.insert(m.cell_diff);
     long current_time = millis();
-    auto result = cell_diff_history.oldest_element();
+    auto result = cell_diff_history.avg_element();
     if (result.has_value()) {
         float history_cell_diff = result.value().value;
         float history_timestamp = result.value().timestamp;

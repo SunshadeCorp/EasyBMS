@@ -1,4 +1,4 @@
-#include <queue>
+#include <deque>
 
 
 template <typename T>
@@ -15,7 +15,7 @@ public:
     };
 
 private:
-    std::queue<Element> _values;
+    std::deque<Element> _values;
     unsigned long _retention_period;
     unsigned long _granularity;
 
@@ -23,7 +23,7 @@ private:
         unsigned long current_time = millis();
 
         while (!_values.empty() && current_time - _values.front().timestamp > _retention_period) {
-            _values.pop();
+            _values.pop_front();
         }
     }
 
@@ -38,13 +38,13 @@ public:
         Element new_element(value, current_time);
 
         if (_values.empty()) {
-            _values.push(new_element);
+            _values.push_back(new_element);
         }
         else {
             unsigned long last_insert_time = _values.back().timestamp;
 
             if (current_time - last_insert_time > _granularity) {
-                _values.push(new_element);
+                _values.push_back(new_element);
             }
 
             clean();
@@ -62,7 +62,6 @@ public:
         }
     }
 
-    /*
     std::optional<Element> avg_element() {
         clean();
 
@@ -84,5 +83,4 @@ public:
             return Element(avg_value, avg_timestamp);
         }
     }
-    */
 };
