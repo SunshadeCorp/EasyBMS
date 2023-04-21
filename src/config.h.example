@@ -3,7 +3,8 @@
 #include <pgmspace.h>
 #include "battery_type.h"
 
-BatteryType battery_type = BatteryType::meb12s;
+BatteryType battery_type = BatteryType::mebAuto;
+BmsMode bms_mode = BmsMode::single;
 
 constexpr char ssid[] = "WIFI_SSID";
 constexpr char password[] = "WIFI_PASS";
@@ -11,10 +12,11 @@ constexpr char mqtt_server[] = "mosquitto.local";
 constexpr uint16_t mqtt_port = 1883;
 constexpr char mqtt_username[] = "mosquitto_user";
 constexpr char mqtt_password[] = "mosquitto_pass";
+constexpr bool use_mqtt = false;
 constexpr bool use_display = true;
 
-constexpr char ota_server[] = "example.com";
-const char trustRoot[] PROGMEM = R"EOF(
+constexpr char ota_server[] = "example.com/ota/";
+const char trustRoot[] PROGMEM = R"CERT(
 -----BEGIN CERTIFICATE-----
 MIIFazCCA1OgAwIBAgIRAIIQz7DSQONZRGPgu2OCiwAwDQYJKoZIhvcNAQELBQAw
 TzELMAkGA1UEBhMCVVMxKTAnBgNVBAoTIEludGVybmV0IFNlY3VyaXR5IFJlc2Vh
@@ -46,5 +48,5 @@ oyi3B43njTOQ5yOf+1CceWxG1bQVs5ZufpsMljq4Ui0/1lvh+wjChP4kqKOJ2qxq
 mRGunUHBcnWEvgJBQl9nJEiU0Zsnvgc/ubhPgXRR4Xq37Z0j4r7g1SgEEzwxA57d
 emyPxgcYxn/eR44/KJ4EBs+lVDR3veyJm+kXQ99b21/+jh5Xos1AnX5iItreGCc=
 -----END CERTIFICATE-----
-)EOF";
+)CERT"; // ISRG Root X1 from https://letsencrypt.org/de/certificates/
 inline X509List cert(trustRoot);

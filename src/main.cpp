@@ -1,15 +1,15 @@
 #include <ESP8266httpUpdate.h>
-#include <LTC6804.h>
-#include <LTC6804.cpp> // used for template functions
+#include "ltc_wrapper.hpp"
 #include <PubSubClient.h>
 
 #include "config.h"
 #include "version.h"
-#include "display.h"
-#include "soc.h"
-#include "wifi.h"
+#include "display.hpp"
+#include "soc.hpp"
+#include "wifi.hpp"
 #include "TimedHistory.hpp"
 #include "Measurements.hpp"
+#include "single_mode_balancer.hpp"
 
 #define DEBUG
 #define SSL_ENABLED false
@@ -24,15 +24,14 @@
 #define DEBUG_PRINTLN(...)
 #endif
 
-static LTC68041 LTC = LTC68041(D8);
-
 constexpr unsigned long MASTER_TIMEOUT = 5000;
-constexpr unsigned long LTC_CHECK_INTERVAL = 1000;
 constexpr unsigned long BLINK_TIME = 5000;
+constexpr unsigned long LTC_CHECK_INTERVAL = 1000;
 
 String hostname;
 String mac_topic;
 String module_topic;
+bool auto_detect_battery_type;
 
 #if SSL_ENABLED
 WiFiClientSecure espClient;
@@ -50,7 +49,7 @@ unsigned long last_connection = 0;
 unsigned long last_blink_time = 0;
 unsigned long long last_master_uptime = 0;
 
-unsigned long pec15_error_count = 0;
+SingleModeBalancer single_balancer = SingleModeBalancer(60*1000, 10*1000);
 
 // Store cell diff history with 1h retention and 1 min granularity
 auto cell_diff_history = TimedHistory<float>(1000*60*60, 1000*60);
@@ -98,6 +97,28 @@ String flash_description() {
         String(EspClass::getFlashChipVendorId(), HEX);
 }
 
+String battery_type_description() {
+    if (battery_type == BatteryType::meb12s) {
+        return "meb12s";
+    } else if (battery_type == BatteryType::meb8s) {
+        return "meb8s";
+    } else if (battery_type == BatteryType::mebAuto) {
+        return "mebAuto";
+    } else {
+        return "invalid";
+    }
+}
+
+String bms_mode_description() {
+    if (bms_mode == BmsMode::single) {
+        return "single";
+    } else if (bms_mode == BmsMode::slave) {
+        return "slave";
+    } else {
+        return "invalid";
+    }
+}
+
 void reconnect() {
     // Loop until we're reconnected
     while (!client.connected()) {
@@ -119,6 +140,7 @@ void reconnect() {
             publish(mac_topic + "/esp_sdk", EspClass::getFullVersion());
             publish(mac_topic + "/cpu", cpu_description());
             publish(mac_topic + "/flash", flash_description());
+            publish(mac_topic + "/bms_mode", bms_mode_description());
             // Resubscribe
             subscribe("master/uptime");
             for (int i = 0; i < 12; ++i) {
@@ -186,7 +208,8 @@ int cell_id_from_name(const String &cell_name) {
     return cell_number - 1;
 }
 
-void set_balance_bits(std::bitset<12> &balance_bits) {
+std::bitset<12> slave_balance_bits() {
+    auto balance_bits = std::bitset<12>();
     for (size_t i = 0; i < cells_to_balance_start.size(); ++i) {
         if (millis() - cells_to_balance_start.at(i) <= cells_to_balance_interval.at(i)) {
             balance_bits.set(i, true);
@@ -194,78 +217,25 @@ void set_balance_bits(std::bitset<12> &balance_bits) {
             cells_to_balance_interval.at(i) = 0;
         }
     }
-}
 
-void set_LTC(std::bitset<12> &balance_bits) {
-    /*
-     * check LTC SPI
-     */
-#ifdef DEBUG
-    if (LTC.checkSPI(true)) {
-#else
-        if (LTC.checkSPI(false)) {
-#endif
-        digitalWrite(D1, HIGH);
-//        DEBUG_PRINTLN();
-//        DEBUG_PRINTLN("SPI ok");
-    } else {
-        digitalWrite(D1, LOW);
-//        DEBUG_PRINTLN();
-//        DEBUG_PRINTLN("SPI lost");
-    }
-
-    LTC.cfgSetRefOn(true);
-    /*
-     * set LTC config
-     */
-    LTC.cfgSetVUV(3.1);
-    LTC.cfgSetVOV(4.2);
-
-    if (balance_bits.any()) {
-        digitalWrite(D2, HIGH);
-    } else {
-        digitalWrite(D2, LOW);
-    }
-    LTC.cfgSetDCC(balance_bits);
-
-    LTC.cfgWrite();
-    //Start different Analog-Digital-Conversions in the Chip
-
-    LTC.startCellConv(LTC68041::DCP_DISABLED);
-    delay(5); //Wait until conversion is finished
-    LTC.startAuxConv();
-    delay(5); //Wait until conversion is finished
-    LTC.startStatusConv();
-    delay(5); //Wait until conversion is finished
-    if (!LTC.cfgRead()) {
-        pec15_error_count++;
-    }
-
-    //Print the clear text values cellVoltage, gpioVoltage, Undervoltage Bits, Overvoltage Bits
-#ifdef DEBUG
-    LTC.readCfgDbg();
-    LTC.readStatusDbg();
-    LTC.readAuxDbg();
-    LTC.readCellsDbg();
-#endif
-}
-
-float raw_voltage_to_real_module_temp(float raw_voltage) {
-    return 32.0513f * raw_voltage - 23.0769f;
+    return balance_bits;
 }
 
 Measurements get_measurements() {
-    std::array<float, 12> cell_voltages{};
-    if (!LTC.getCellVoltages(cell_voltages)) {
-        pec15_error_count++;
+    std::array<float, 12> cell_voltages = ltc_cell_voltages();
+
+    if (auto_detect_battery_type) {
+        battery_type = detect_battery_type(cell_voltages);
     }
-    float raw_voltage_module_temp_1 = LTC.getAuxVoltage(LTC68041::AuxChannel::CHG_GPIO1);
-    float raw_voltage_module_temp_2 = LTC.getAuxVoltage(LTC68041::AuxChannel::CHG_GPIO2);
 
     float sum = 0.0f;
     float voltage_min = cell_voltages[0];
     float voltage_max = cell_voltages[0];
     for (size_t i = 0; i < cell_voltages.size(); i++) {
+        if (battery_type == BatteryType::meb8s && i >=4 && i < 8) {
+            continue;
+        }
+
         sum += cell_voltages[i];
         if (cell_voltages[i] < voltage_min) {
             voltage_min = cell_voltages[i];
@@ -286,10 +256,10 @@ Measurements get_measurements() {
         m.cell_diffs_to_avg[i] = cell_voltages[i] - voltage_avg;
     }
     m.cell_voltages = cell_voltages;
-    m.module_voltage = LTC.getStatusVoltage(LTC68041::CHST_SOC);
-    m.module_temp_1 = raw_voltage_to_real_module_temp(raw_voltage_module_temp_1);
-    m.module_temp_2 = raw_voltage_to_real_module_temp(raw_voltage_module_temp_2);
-    m.chip_temp = LTC.getStatusVoltage(LTC.StatusGroup::CHST_ITMP);
+    m.module_voltage = ltc_module_voltage();
+    m.module_temp_1 = ltc_module_temp_1();
+    m.module_temp_2 = ltc_module_temp_2();
+    m.chip_temp = ltc_chip_temp();
     m.avg_cell_voltage = voltage_avg;
     m.min_cell_voltage = voltage_min;
     m.max_cell_voltage = voltage_max;
@@ -300,7 +270,7 @@ Measurements get_measurements() {
     // Calculate cell diff trend
     cell_diff_history.insert(m.cell_diff);
     long current_time = millis();
-    auto result = cell_diff_history.oldest_element();
+    auto result = cell_diff_history.avg_element();
     if (result.has_value()) {
         float history_cell_diff = result.value().value;
         float history_timestamp = result.value().timestamp;
@@ -314,12 +284,12 @@ Measurements get_measurements() {
         }
     }
 
-    return m;
+    return m; 
 }
 
 void publish_mqtt_values(const std::bitset<12>& balance_bits, const String& topic, const Measurements& m) {
     publish(module_topic + "/uptime", millis());
-    publish(module_topic + "/pec15_error_count", pec15_error_count);
+    publish(module_topic + "/pec15_error_count", ltc_error_count());
 
     for (size_t i = 0; i < m.cell_voltages.size(); i++) {
         String cell_name = cell_name_from_id(i);
@@ -332,6 +302,8 @@ void publish_mqtt_values(const std::bitset<12>& balance_bits, const String& topi
     publish(topic + "/module_voltage", m.module_voltage);
     publish(topic + "/module_temps", String(m.module_temp_1) + "," + String(m.module_temp_2));
     publish(topic + "/chip_temp", m.chip_temp);
+    publish(mac_topic + "/battery_type", battery_type_description());
+    publish(mac_topic + "/auto_detect_battery_type", auto_detect_battery_type);
 }
 
 void callback(char *topic, byte *payload, unsigned int length) {
@@ -360,7 +332,7 @@ void callback(char *topic, byte *payload, unsigned int length) {
         if (cell_id == -1) {
             return;
         }
-        if (topic_string == module_topic + "/cell/" + cell_name + "/balance_request") {
+        if (topic_string == module_topic + "/cell/" + cell_name + "/balance_request" && bms_mode == BmsMode::slave) {
             unsigned long balance_time = std::stoul(payload_string.c_str());
             cells_to_balance_start.at(cell_id) = millis();
             cells_to_balance_interval.at(cell_id) = balance_time;
@@ -368,11 +340,10 @@ void callback(char *topic, byte *payload, unsigned int length) {
     } else if (topic_string == module_topic + "/read_accurate") {
         if (payload_string == "1") {
             last_ltc_check = millis();
-            std::bitset<12> balance_bits{};
-            set_balance_bits(balance_bits);
+            std::bitset<12> balance_bits = slave_balance_bits();
             WiFi.forceSleepBegin();
             delay(1);
-            set_LTC(balance_bits);
+            ltc_set_balance_bits(balance_bits);
             WiFi.forceSleepWake();
             delay(1);
             while (WiFi.status() != WL_CONNECTED) {
@@ -437,6 +408,10 @@ void callback(char *topic, byte *payload, unsigned int length) {
     DEBUG_BEGIN(74880);
     DEBUG_PRINTLN("init");
 
+    if (use_display) {
+        display_init();
+    }
+
     if (use_mqtt) {
         String mac = mac_string();
 
@@ -449,68 +424,20 @@ void callback(char *topic, byte *payload, unsigned int length) {
     }
 
     randomSeed(micros());
-    LTC.initSPI(D7, D6, D5); //Initialize LTC6804 hardware
+    ltc_init();
 
 #if SSL_ENABLED
     espClient.setTrustAnchors(&mqtt_cert_store);
 #endif
 
     client.setCallback(callback);
-    setup_display();
 
-}
-
-bool runTests() {
-    LTC.startCellConvTest(LTC68041::ST_SELF_TEST_1);
-    delay(5);
-
-    std::array<float, 12> cell_voltages_test{};
-    LTC.getCellVoltages(cell_voltages_test);
-
-    for (float pattern: cell_voltages_test) {
-        DEBUG_PRINT("Conversion Test results: ");
-        DEBUG_PRINT(pattern);
-        DEBUG_PRINT(", ");
+    if (battery_type == BatteryType::mebAuto) {
+        auto_detect_battery_type = true;
+        battery_type = BatteryType::meb12s;
+    } else {
+        auto_detect_battery_type = false;
     }
-
-    DEBUG_PRINTLN();
-
-    LTC.startOpenWireCheck(LTC68041::PUP_PULL_UP, LTC68041::DCP_DISABLED);
-    delay(5);
-    LTC.startOpenWireCheck(LTC68041::PUP_PULL_UP, LTC68041::DCP_DISABLED);
-    delay(5);
-
-    std::array<float, 12> cell_voltages_pup{};
-    LTC.getCellVoltages(cell_voltages_pup);
-
-    LTC.startOpenWireCheck(LTC68041::PUP_PULL_DOWN, LTC68041::DCP_DISABLED);
-    delay(5);
-    LTC.startOpenWireCheck(LTC68041::PUP_PULL_DOWN, LTC68041::DCP_DISABLED);
-    delay(5);
-
-    std::array<float, 12> cell_voltages_pdown{};
-    LTC.getCellVoltages(cell_voltages_pdown);
-
-    if (cell_voltages_pup[0] < 0.0001) {
-        DEBUG_PRINTLN("C0 is open");
-        return false;
-    }
-
-    if (cell_voltages_pdown[11] < 0.0001) {
-        DEBUG_PRINTLN("C12 is open");
-        return false;
-    }
-
-    for (int i = 1; i < 12; i++) {
-        if ((cell_voltages_pup[i] - cell_voltages_pdown[i]) < -0.4) {
-            DEBUG_PRINT("C");
-            DEBUG_PRINT(i);
-            DEBUG_PRINTLN(" is open");
-            return false;
-        }
-    }
-
-    return true;
 }
 
 void update_display(const std::bitset<12>& balance_bits, const Measurements& m) {
@@ -536,11 +463,19 @@ void loop() {
 
     if (millis() - last_ltc_check > LTC_CHECK_INTERVAL) {
         last_ltc_check = millis();
-        std::bitset<12> balance_bits{};
-        set_balance_bits(balance_bits);
-        set_LTC(balance_bits);
-
         Measurements measurements = get_measurements();
+
+        std::bitset<12> balance_bits{};
+        if (bms_mode == BmsMode::slave) {
+            balance_bits = slave_balance_bits();
+        } else if (bms_mode == BmsMode::single) {
+            single_balancer.update_cell_voltages(measurements.cell_voltages);
+            single_balancer.balance();
+            balance_bits = single_balancer.balance_bits();
+        } else {
+            balance_bits = std::bitset<12>(0);
+        }
+        ltc_set_balance_bits(balance_bits);
 
         if (use_mqtt) {
             publish_mqtt_values(balance_bits, module_topic, measurements);

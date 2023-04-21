@@ -15,5 +15,5 @@ struct DisplayData {
     long uptime_seconds;
 };
 
-void setup_display(void);
+void display_init(void);
 void draw_cell_voltages(const DisplayData& data);
