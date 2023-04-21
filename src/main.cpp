@@ -408,6 +408,10 @@ void callback(char *topic, byte *payload, unsigned int length) {
     DEBUG_BEGIN(74880);
     DEBUG_PRINTLN("init");
 
+    if (use_display) {
+        display_init();
+    }
+
     if (use_mqtt) {
         String mac = mac_string();
 
@@ -427,10 +431,6 @@ void callback(char *topic, byte *payload, unsigned int length) {
 #endif
 
     client.setCallback(callback);
-
-    if (use_display) {
-        display_init();
-    }
 
     if (battery_type == BatteryType::mebAuto) {
         auto_detect_battery_type = true;
