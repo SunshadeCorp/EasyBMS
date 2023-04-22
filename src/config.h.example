@@ -1,7 +1,8 @@
 #pragma once
 
 #include <pgmspace.h>
-#include "battery_type.h"
+#include "battery_type.hpp"
+#include "bms_mode.hpp"
 
 BatteryType battery_type = BatteryType::mebAuto;
 BmsMode bms_mode = BmsMode::single;
