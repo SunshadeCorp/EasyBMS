@@ -45,7 +45,14 @@ void draw_cell_voltages(const DisplayData& data) {
   String display_text;
 
   for (int i = 0; i < 12; i++) {
-    display_text = String(data.measurements.cell_voltages[i], 3);
+    if (data.measurements.cell_voltages[i]<10.0 && data.measurements.cell_voltages[i]>=0)
+    {
+      display_text = String(data.measurements.cell_voltages[i], 3);
+    }
+    else
+    {
+      display_text = String("invld");
+    }
     tft.setCursor(0*8*4*text_size, i*8*text_size);
     tft.print(display_text.c_str());
   }
@@ -65,29 +72,42 @@ void draw_cell_voltages(const DisplayData& data) {
     tft.print(display_text.c_str());
   }
 
-  display_text = "dif:"+String(data.measurements.cell_diff, 0)+"mV";
-  tft.setCursor(6*8*text_size, 0*8*text_size);
-  tft.print("       ");
+  int celldiffmv = data.measurements.cell_diff*1000.0;
+  if (celldiffmv<9999 && celldiffmv>=0)
+    display_text = "dif:"+String(celldiffmv)+"mV";
+  else
+    display_text = "dif:-1";
   tft.setCursor(6*8*text_size, 0*8*text_size);
   tft.print(display_text.c_str());
 
-  display_text = "min:"+String(data.measurements.min_cell_voltage, 3);
+  if (data.measurements.min_cell_voltage<9 && data.measurements.min_cell_voltage>=0)
+    display_text = "min:"+String(data.measurements.min_cell_voltage, 3);
+  else
+    display_text = "min:-1";
   tft.setCursor(6*8*text_size, 1*8*text_size);
   tft.print(display_text.c_str());
-
-  display_text = "max:"+String(data.measurements.max_cell_voltage, 3);
+  if (data.measurements.max_cell_voltage<9 && data.measurements.max_cell_voltage>=0)
+    display_text = "max:"+String(data.measurements.max_cell_voltage, 3);
+  else
+    display_text = "min:-1";
   tft.setCursor(6*8*text_size, 2*8*text_size);
   tft.print(display_text.c_str());
-
-  display_text = "t1:"+String(data.measurements.module_temp_1, 1);
+  if (data.measurements.module_temp_1<999 && data.measurements.module_temp_1>=-99)
+    display_text = "t1:"+String(data.measurements.module_temp_1, 1);
+  else
+    display_text = "t1:-1";
   tft.setCursor(6*8*text_size, 3*8*text_size);
   tft.print(display_text.c_str());
-
-  display_text = "t2:"+String(data.measurements.module_temp_2, 1);
+  if (data.measurements.module_temp_2<999 && data.measurements.module_temp_2>=-99)
+    display_text = "t2:"+String(data.measurements.module_temp_2, 1);
+  else
+    display_text = "t2:-1";
   tft.setCursor(6*8*text_size, 4*8*text_size);
   tft.print(display_text.c_str());
-
-  display_text = "ti:"+String(data.measurements.chip_temp, 1);
+  if (data.measurements.chip_temp<999 && data.measurements.chip_temp>=-99)
+    display_text = "ti:"+String(data.measurements.chip_temp, 1);
+  else
+    display_text = "ti:-1";
   tft.setCursor(6*8*text_size, 5*8*text_size);
   tft.print(display_text.c_str());
 
