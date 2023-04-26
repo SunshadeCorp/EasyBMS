@@ -1,4 +1,4 @@
-#include "display.h"
+#include "display.hpp"
 
 // New background colour
 #define TFT_BROWN 0x38E0
@@ -31,10 +31,10 @@ void draw_cell_voltages(const DisplayData& data) {
 
   // First we test them with a background colour set
   //tft.setTextSize(1);
-  tft.setCursor(10, 10);
+  tft.setCursor(0, 0);
   tft.fillScreen(TFT_BLACK);
   tft.setTextColor(TFT_WHITE, TFT_BLACK);
-
+  tft.setCursor(10, 10);
   //tft.print("Hi ");
 
   tft.print("12345678901234567");
@@ -53,7 +53,7 @@ void draw_cell_voltages(const DisplayData& data) {
   delay(4000);
 }
 
-void setup_display(void) {
+void display_init(void) {
   tft.init();
   tft.setRotation(1);
 }
