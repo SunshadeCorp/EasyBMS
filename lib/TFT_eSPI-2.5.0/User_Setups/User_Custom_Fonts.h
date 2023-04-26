@@ -21,6 +21,14 @@
 #ifdef LOAD_GFXFF
 
   // New custom font file #includes
+  #include <Fonts/Custom/Open_Sans_7.h>
+  #include <Fonts/Custom/Open_Sans_8.h>
+  #include <Fonts/Custom/Open_Sans_9.h>
+  #include <Fonts/Custom/Open_Sans_10.h>
+  #include <Fonts/Custom/Open_Sans_11.h>
+  #include <Fonts/Custom/Open_Sans_12.h>
+  #include <Fonts/Custom/Open_Sans_13.h>
+  #include <Fonts/Custom/DejaVu_Sans_Mono_8.h>
   #include <Fonts/Custom/Orbitron_Light_24.h> // CF_OL24
   #include <Fonts/Custom/Orbitron_Light_32.h> // CF_OL32
   #include <Fonts/Custom/Roboto_Thin_24.h>    // CF_RT24
