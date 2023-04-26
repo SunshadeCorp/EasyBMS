@@ -44,14 +44,15 @@ void draw_cell_voltages(const DisplayData& data)
   }
   //printValue(int x, int y, float value, int decplaces, float min, float max, String prefix, String unit)
   printValue(6,0,data.measurements.cell_diff,3,0,9.999,"dif:","");
-  printValue(6,1,data.measurements.cell_diff_trend,1,-99.9,99.9,"dtr:","");
+  printValue(6,1,data.measurements.cell_diff_trend,0,-99,99,"tre:","mVh");
   printValue(6,2,data.measurements.soc,1,-99.9,999.9,"SOC:","");
   printValue(6,3,data.measurements.module_voltage,1,0,99.9,"Mod:","V");
-  printValue(6,4,data.measurements.min_cell_voltage,3,0,9.999,"min:","");
-  printValue(6,5,data.measurements.max_cell_voltage,3,0,9.999,"max:","");
-  printValue(6,6,data.measurements.module_temp_1,1,0,99.9,"t1:","C");
-  printValue(6,7,data.measurements.module_temp_2,1,-99.9,99.9,"t2:","C");
-  printValue(6,8,data.measurements.chip_temp,1,-99.9,99.9,"ti:","C");
+  printValue(6,4,data.measurements.avg_cell_voltage,3,0,999.9,"avg:","");
+  printValue(6,5,data.measurements.min_cell_voltage,3,0,9.999,"min:","");
+  printValue(6,6,data.measurements.max_cell_voltage,3,0,9.999,"max:","");
+  printValue(6,7,data.measurements.module_temp_1,1,0,99.9,"t1:","C");
+  printValue(6,8,data.measurements.module_temp_2,1,-99.9,99.9,"t2:","C");
+  printValue(6,9,data.measurements.chip_temp,1,-99.9,99.9,"ti:","C");
 
 }
 
