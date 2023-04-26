@@ -19,12 +19,14 @@
 #include <TFT_eSPI.h> // Graphics and font library for ST7735 driver chip
 #include <SPI.h>
 
-uint8_t text_size = 1;
+float text_size = 1.3;
 
 TFT_eSPI tft = TFT_eSPI();  // Invoke library, pins defined in User_Setup.h
 
 void draw_cell_voltages(const DisplayData& data) {
-  String display_text;
+  String display_text = "";
+  tft.setCursor(0, 0);
+  tft.fillScreen(TFT_BLACK);
 
   for (int i = 0; i < 12; i++) {
     if (data.measurements.cell_voltages[i]<10.0 && data.measurements.cell_voltages[i]>=0)
@@ -35,7 +37,7 @@ void draw_cell_voltages(const DisplayData& data) {
     {
       display_text = String("invld");
     }
-    tft.setCursor(0*8*4*text_size, i*8*text_size);
+    tft.setCursor(0*8*4*text_size, (i+1)*8*text_size);
     tft.print(display_text.c_str());
   }
 
@@ -93,31 +95,6 @@ void draw_cell_voltages(const DisplayData& data) {
     display_text = "ti:-1";
   tft.setCursor(6*8*text_size, 5*8*text_size);
   tft.print(display_text.c_str());
-
-  /*
-  // First we test them with a background colour set
-  //tft.setTextSize(1);
-  tft.setCursor(0, 0);
-  tft.fillScreen(TFT_BLACK);
-  tft.setTextColor(TFT_WHITE, TFT_BLACK);
-  tft.setCursor(10, 10);
-  //tft.print("Hi ");
-
-  tft.print("12345678901234567");
-  for (int i = 1; i < 12; i++) {
-    //tft.drawString(String(i), 0, 13*i, 2);
-  }
-  
-  //tft.drawString("789:;<=>?@ABCDEFGHIJKL", 0, 16, 2);
-  //tft.drawString("MNOPQRSTUVWXYZ[\\]^_`", 0, 32, 2);
-  //tft.drawString("abcdefghijklmnopqrstuvw", 0, 48, 2);
-  //int xpos = 0;
-  //xpos += tft.drawString("xyz{|}~", 0, 64, 2);
-  //tft.drawChar(127, xpos, 64, 2);
-  //delay(WAIT);
-
-  delay(4000);
-  */
 }
 
 void display_init(void) {
@@ -125,9 +102,9 @@ void display_init(void) {
   tft.setCursor(0, 0);
   tft.fillScreen(TFT_BLACK);
   tft.setRotation(1);
-  tft.setTextSize(text_size);
+  //tft.setTextSize(text_size);
   tft.setTextColor(0xFFFF, 0x0000);
   tft.setTextWrap(false);
   //tft.loadFont(AA_FONT);    // Must load the font first
-  //tft.setFreeFont(FM9);
+  tft.setFreeFont(&Open_Sans_Regular_13);
 }
