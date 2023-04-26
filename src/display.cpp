@@ -1,54 +1,44 @@
 #include "display.hpp"
 
-// Option 1 (recommended): must use the hardware SPI pins
-// (for UNO thats sclk = 13 and sid = 11) and pin 10 must be
-// an output. This is much faster - also required if you want
-// to use the microSD card (see the image drawing example)
+// New background colour
+#define TFT_BROWN 0x38E0
 
-// For 1.44" and 1.8" TFT with ST7735 use
-Adafruit_ST7735 tft = Adafruit_ST7735(TFT_CS,  TFT_DC, TFT_RST); // Fast
-//Adafruit_ST7735 tft = Adafruit_ST7735(TFT_CS, TFT_DC, TFT_MOSI, TFT_SCLK, TFT_RST); // Slow
+#include "NotoSansBold15.h"
+#include "NotoSansBold36.h"
+#include "NotoSansMonoSCB20.h"
+#include "Free_Fonts.h"
 
-void drawtext(const char *text, uint16_t color) {
-  tft.setCursor(0, 0);
-  tft.setTextColor(color);
-  tft.setTextWrap(true);
-  tft.print(text);
-}
+// The font names are arrays references, thus must NOT be in quotes ""
+#define AA_FONT_SMALL NotoSansBold15
+#define AA_FONT_LARGE NotoSansBold36
+#define AA_FONT NotoSansMonoSCB20
 
-/*
-void draw_cell_voltage(const char* text, int row, int column) {
-    uint8_t text_size = 1;
-    tft.setTextSize(text_size);
-    tft.setCursor(column*8*4, row*8*text_size);
-    tft.setTextWrap(true);
-    tft.print(text);
-}
-*/
+// Pause in milliseconds between screens, change to 0 to time font rendering
+#define WAIT 500
+
+#include <TFT_eSPI.h> // Graphics and font library for ST7735 driver chip
+#include <SPI.h>
+
+uint8_t text_size = 1;
+
+TFT_eSPI tft = TFT_eSPI();  // Invoke library, pins defined in User_Setup.h
 
 void draw_cell_voltages(const DisplayData& data) {
-  /*
-  tft.invertDisplay(true);
-  delay(500);
-  tft.invertDisplay(false);
-  delay(500);
-  */
-  
-
-  uint8_t text_size = 1;
-  tft.setTextSize(text_size);
-  tft.setRotation(1);
-  tft.setTextWrap(true);
-  tft.setTextColor(0xFFFF, 0x0000);
-  tft.setTextWrap(true);
-
   String display_text;
 
   for (int i = 0; i < 12; i++) {
-    display_text = String(data.measurements.cell_voltages[i], 3);
+    if (data.measurements.cell_voltages[i]<10.0 && data.measurements.cell_voltages[i]>=0)
+    {
+      display_text = String(data.measurements.cell_voltages[i], 3);
+    }
+    else
+    {
+      display_text = String("invld");
+    }
     tft.setCursor(0*8*4*text_size, i*8*text_size);
     tft.print(display_text.c_str());
   }
+
   for (int i = 0; i < 12; i++) 
   {
     String display_text;
@@ -65,40 +55,79 @@ void draw_cell_voltages(const DisplayData& data) {
     tft.print(display_text.c_str());
   }
 
-  display_text = "dif:"+String(data.measurements.cell_diff, 0)+"mV";
-  tft.setCursor(6*8*text_size, 0*8*text_size);
-  tft.print("       ");
+  int celldiffmv = data.measurements.cell_diff*1000.0;
+  if (celldiffmv<9999 && celldiffmv>=0)
+    display_text = "dif:"+String(celldiffmv)+"mV";
+  else
+    display_text = "dif:-1";
   tft.setCursor(6*8*text_size, 0*8*text_size);
   tft.print(display_text.c_str());
 
-  display_text = "min:"+String(data.measurements.min_cell_voltage, 3);
+  if (data.measurements.min_cell_voltage<9 && data.measurements.min_cell_voltage>=0)
+    display_text = "min:"+String(data.measurements.min_cell_voltage, 3);
+  else
+    display_text = "min:-1";
   tft.setCursor(6*8*text_size, 1*8*text_size);
   tft.print(display_text.c_str());
-
-  display_text = "max:"+String(data.measurements.max_cell_voltage, 3);
+  if (data.measurements.max_cell_voltage<9 && data.measurements.max_cell_voltage>=0)
+    display_text = "max:"+String(data.measurements.max_cell_voltage, 3);
+  else
+    display_text = "min:-1";
   tft.setCursor(6*8*text_size, 2*8*text_size);
   tft.print(display_text.c_str());
-
-  display_text = "t1:"+String(data.measurements.module_temp_1, 1);
+  if (data.measurements.module_temp_1<999 && data.measurements.module_temp_1>=-99)
+    display_text = "t1:"+String(data.measurements.module_temp_1, 1);
+  else
+    display_text = "t1:-1";
   tft.setCursor(6*8*text_size, 3*8*text_size);
   tft.print(display_text.c_str());
-
-  display_text = "t2:"+String(data.measurements.module_temp_2, 1);
+  if (data.measurements.module_temp_2<999 && data.measurements.module_temp_2>=-99)
+    display_text = "t2:"+String(data.measurements.module_temp_2, 1);
+  else
+    display_text = "t2:-1";
   tft.setCursor(6*8*text_size, 4*8*text_size);
   tft.print(display_text.c_str());
-
-  display_text = "ti:"+String(data.measurements.chip_temp, 1);
+  if (data.measurements.chip_temp<999 && data.measurements.chip_temp>=-99)
+    display_text = "ti:"+String(data.measurements.chip_temp, 1);
+  else
+    display_text = "ti:-1";
   tft.setCursor(6*8*text_size, 5*8*text_size);
   tft.print(display_text.c_str());
 
-  //tft.drawLine(60,0,60, 128, ST77XX_WHITE);
-  //testdrawtext(display_text.c_str(), ST77XX_WHITE);
- 
+  /*
+  // First we test them with a background colour set
+  //tft.setTextSize(1);
+  tft.setCursor(0, 0);
+  tft.fillScreen(TFT_BLACK);
+  tft.setTextColor(TFT_WHITE, TFT_BLACK);
+  tft.setCursor(10, 10);
+  //tft.print("Hi ");
+
+  tft.print("12345678901234567");
+  for (int i = 1; i < 12; i++) {
+    //tft.drawString(String(i), 0, 13*i, 2);
+  }
+  
+  //tft.drawString("789:;<=>?@ABCDEFGHIJKL", 0, 16, 2);
+  //tft.drawString("MNOPQRSTUVWXYZ[\\]^_`", 0, 32, 2);
+  //tft.drawString("abcdefghijklmnopqrstuvw", 0, 48, 2);
+  //int xpos = 0;
+  //xpos += tft.drawString("xyz{|}~", 0, 64, 2);
+  //tft.drawChar(127, xpos, 64, 2);
+  //delay(WAIT);
+
+  delay(4000);
+  */
 }
 
 void display_init(void) {
-  // Use this initializer if you're using a 1.8" TFT
-  tft.initR(INITR_BLACKTAB);   // initialize a ST7735S chip, black tab
-  tft.fillScreen(ST77XX_BLACK);
-  delay(50);
+  tft.init();
+  tft.setCursor(0, 0);
+  tft.fillScreen(TFT_BLACK);
+  tft.setRotation(1);
+  tft.setTextSize(text_size);
+  tft.setTextColor(0xFFFF, 0x0000);
+  tft.setTextWrap(false);
+  //tft.loadFont(AA_FONT);    // Must load the font first
+  //tft.setFreeFont(FM9);
 }
