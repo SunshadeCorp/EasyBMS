@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Measurements.hpp"
-
+#include <WString.h>
 /*
 #define TFT_CS     D0
 #define TFT_RST    -1  // TFT RST = Arduino RST
@@ -18,3 +18,4 @@ struct DisplayData {
 
 void display_init(void);
 void draw_cell_voltages(const DisplayData& data);
+void printValue(int x, int y, float value, int decplaces, float min, float max, String prefix, String unit);

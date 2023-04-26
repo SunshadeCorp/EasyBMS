@@ -1,5 +1,6 @@
 #include "display.hpp"
 
+
 // New background colour
 #define TFT_BROWN 0x38E0
 
@@ -22,102 +23,36 @@
 uint8_t text_size = 1;
 
 TFT_eSPI tft = TFT_eSPI();  // Invoke library, pins defined in User_Setup.h
+    String display_text;
+void draw_cell_voltages(const DisplayData& data) 
+{
 
-void draw_cell_voltages(const DisplayData& data) {
-  String display_text;
 
-  for (int i = 0; i < 12; i++) {
-    if (data.measurements.cell_voltages[i]<10.0 && data.measurements.cell_voltages[i]>=0)
-    {
-      display_text = String(data.measurements.cell_voltages[i], 3);
-    }
-    else
-    {
-      display_text = String("invld");
-    }
-    tft.setCursor(0*8*4*text_size, i*8*text_size);
-    tft.print(display_text.c_str());
+  for (int i = 0; i < 12; i++) 
+  {
+    printValue(0,i,data.measurements.cell_voltages[i],3,0,9.999,"","");
   }
 
   for (int i = 0; i < 12; i++) 
   {
-    String display_text;
     if(data.balance_bits[i])
-    {
       display_text = String("-");
-
-    }
     else
-    {
       display_text = String(" ");
-    }
     tft.setCursor(1*8*4*text_size, i*8*text_size);
     tft.print(display_text.c_str());
   }
+  //printValue(int x, int y, float value, int decplaces, float min, float max, String prefix, String unit)
+  printValue(6,0,data.measurements.cell_diff,3,0,9.999,"dif:","");
+  printValue(6,1,data.measurements.cell_diff_trend,1,-99.9,99.9,"dtr:","");
+  printValue(6,2,data.measurements.soc,1,-99.9,999.9,"SOC:","");
+  printValue(6,3,data.measurements.module_voltage,1,0,99.9,"Mod:","V");
+  printValue(6,4,data.measurements.min_cell_voltage,3,0,9.999,"min:","");
+  printValue(6,5,data.measurements.max_cell_voltage,3,0,9.999,"max:","");
+  printValue(6,6,data.measurements.module_temp_1,1,0,99.9,"t1:","C");
+  printValue(6,7,data.measurements.module_temp_2,1,-99.9,99.9,"t2:","C");
+  printValue(6,8,data.measurements.chip_temp,1,-99.9,99.9,"ti:","C");
 
-  int celldiffmv = data.measurements.cell_diff*1000.0;
-  if (celldiffmv<9999 && celldiffmv>=0)
-    display_text = "dif:"+String(celldiffmv)+"mV";
-  else
-    display_text = "dif:-1";
-  tft.setCursor(6*8*text_size, 0*8*text_size);
-  tft.print(display_text.c_str());
-
-  if (data.measurements.min_cell_voltage<9 && data.measurements.min_cell_voltage>=0)
-    display_text = "min:"+String(data.measurements.min_cell_voltage, 3);
-  else
-    display_text = "min:-1";
-  tft.setCursor(6*8*text_size, 1*8*text_size);
-  tft.print(display_text.c_str());
-  if (data.measurements.max_cell_voltage<9 && data.measurements.max_cell_voltage>=0)
-    display_text = "max:"+String(data.measurements.max_cell_voltage, 3);
-  else
-    display_text = "min:-1";
-  tft.setCursor(6*8*text_size, 2*8*text_size);
-  tft.print(display_text.c_str());
-  if (data.measurements.module_temp_1<999 && data.measurements.module_temp_1>=-99)
-    display_text = "t1:"+String(data.measurements.module_temp_1, 1);
-  else
-    display_text = "t1:-1";
-  tft.setCursor(6*8*text_size, 3*8*text_size);
-  tft.print(display_text.c_str());
-  if (data.measurements.module_temp_2<999 && data.measurements.module_temp_2>=-99)
-    display_text = "t2:"+String(data.measurements.module_temp_2, 1);
-  else
-    display_text = "t2:-1";
-  tft.setCursor(6*8*text_size, 4*8*text_size);
-  tft.print(display_text.c_str());
-  if (data.measurements.chip_temp<999 && data.measurements.chip_temp>=-99)
-    display_text = "ti:"+String(data.measurements.chip_temp, 1);
-  else
-    display_text = "ti:-1";
-  tft.setCursor(6*8*text_size, 5*8*text_size);
-  tft.print(display_text.c_str());
-
-  /*
-  // First we test them with a background colour set
-  //tft.setTextSize(1);
-  tft.setCursor(0, 0);
-  tft.fillScreen(TFT_BLACK);
-  tft.setTextColor(TFT_WHITE, TFT_BLACK);
-  tft.setCursor(10, 10);
-  //tft.print("Hi ");
-
-  tft.print("12345678901234567");
-  for (int i = 1; i < 12; i++) {
-    //tft.drawString(String(i), 0, 13*i, 2);
-  }
-  
-  //tft.drawString("789:;<=>?@ABCDEFGHIJKL", 0, 16, 2);
-  //tft.drawString("MNOPQRSTUVWXYZ[\\]^_`", 0, 32, 2);
-  //tft.drawString("abcdefghijklmnopqrstuvw", 0, 48, 2);
-  //int xpos = 0;
-  //xpos += tft.drawString("xyz{|}~", 0, 64, 2);
-  //tft.drawChar(127, xpos, 64, 2);
-  //delay(WAIT);
-
-  delay(4000);
-  */
 }
 
 void display_init(void) {
@@ -130,4 +65,21 @@ void display_init(void) {
   tft.setTextWrap(false);
   //tft.loadFont(AA_FONT);    // Must load the font first
   //tft.setFreeFont(FM9);
+}
+
+void printValue(int x, int y, float value, int decplaces, float min, float max, String prefix, String unit)
+{
+    String display_text;
+    if (value<max && value>=min)
+    {
+      display_text = prefix+String(value, decplaces)+unit;
+      if(display_text.length()<9)
+        display_text=display_text+" ";
+    }
+    else
+    {
+      display_text = prefix+"invld";
+    }
+    tft.setCursor(8*x, y*8*text_size);
+    tft.print(display_text.c_str());
 }
