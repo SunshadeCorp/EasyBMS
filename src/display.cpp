@@ -25,7 +25,13 @@ String format(float value, uint8_t decplaces, float min, float max, String unit 
     }
 }
 
-String format_temp(float value) { return format(value, 1, -99.9, 99.9, "C"); }
+String format_temp(float value) {
+    return format(value, 1, -99.9, 99.9, "C");
+}
+
+String format_cell_voltage(float value) {
+    return format(value, 3, 0, 9.999);
+}
 
 void clear() {
     for (auto& row : screen_chars) {
@@ -79,13 +85,13 @@ void display_draw(const DisplayData& data) {
     }
 
     // Print Stats
-    String cell_diff = format(data.measurements.cell_diff, 3, 0, 9.999);
+    String cell_diff = format_cell_voltage(data.measurements.cell_diff);
     String cell_diff_trend = format(data.measurements.cell_diff_trend, 0, -99, 99, "mVh");
     String soc = format(data.measurements.soc, 1, -99.9, 999.9);
     String module_voltage = format(data.measurements.module_voltage, 1, 0, 99.9, "V");
-    String min_cell_voltage = format(data.measurements.min_cell_voltage, 3, 0, 9.999);
-    String avg_cell_voltage = format(data.measurements.avg_cell_voltage, 3, 0, 9.999);
-    String max_cell_voltage = format(data.measurements.max_cell_voltage, 3, 0, 9.999);
+    String min_cell_voltage = format_cell_voltage(data.measurements.min_cell_voltage);
+    String avg_cell_voltage = format_cell_voltage(data.measurements.avg_cell_voltage);
+    String max_cell_voltage = format_cell_voltage(data.measurements.max_cell_voltage);
     String module_temp_1 = format_temp(data.measurements.module_temp_1);
     String module_temp_2 = format_temp(data.measurements.module_temp_2);
     String chip_temp = format_temp(data.measurements.chip_temp);
