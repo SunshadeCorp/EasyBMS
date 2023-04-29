@@ -50,6 +50,7 @@ unsigned long last_blink_time = 0;
 unsigned long long last_master_uptime = 0;
 
 SingleModeBalancer single_balancer = SingleModeBalancer(60 * 1000, 10 * 1000);
+Display display = Display();
 
 // Store cell diff history with 1h retention and 1 min granularity
 auto cell_diff_history = TimedHistory<float>(1000 * 60 * 60, 1000 * 60);
@@ -71,9 +72,13 @@ boolean publish(String topic, String value) {
     return client.publish(topic.c_str(), value.c_str(), true);
 }
 
-boolean subscribe(String topic) { return client.subscribe(topic.c_str()); }
+boolean subscribe(String topic) {
+    return client.subscribe(topic.c_str());
+}
 
-String cpu_description() { return String(EspClass::getChipId(), HEX) + " " + EspClass::getCpuFreqMHz() + " MHz"; }
+String cpu_description() {
+    return String(EspClass::getChipId(), HEX) + " " + EspClass::getCpuFreqMHz() + " MHz";
+}
 
 String flash_description() {
     return String(EspClass::getFlashChipId(), HEX) + ", " + (EspClass::getFlashChipSize() / 1024 / 1024) + " of " +
@@ -161,7 +166,9 @@ String cell_name_from_id(size_t cell_id) {
     return String(cell_number);
 }
 
-bool string_is_uint(const String& myString) { return std::all_of(myString.begin(), myString.end(), isDigit); }
+bool string_is_uint(const String& myString) {
+    return std::all_of(myString.begin(), myString.end(), isDigit);
+}
 
 int cell_id_from_name(const String& cell_name) {
     // cell number needs to be an unsigned integer
@@ -261,7 +268,6 @@ Measurements get_measurements() {
             float change = m.cell_diff - history_cell_diff;
             float time_hours = (float)(current_time - history_timestamp) / (float)(1000 * 60 * 60);
             m.cell_diff_trend = change / time_hours;
-            DEBUG_PRINT(String("Cell Diff Trend: ") + m.cell_diff_trend + " mV/h");
         }
     }
 
@@ -387,9 +393,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
     DEBUG_BEGIN(74880);
     DEBUG_PRINTLN("init");
 
-    if (use_display) {
-        display_init();
-    }
+    display.init();
 
     if (use_mqtt) {
         String mac = mac_string();
@@ -426,7 +430,7 @@ void update_display(const std::bitset<12>& balance_bits, const Measurements& m) 
     data.balance_bits = balance_bits;
     data.uptime_seconds = millis() / 1000;
 
-    display_draw(data);
+    display.draw(data);
 }
 
 // the loop function runs over and over again forever
@@ -460,9 +464,7 @@ void loop() {
             publish_mqtt_values(balance_bits, module_topic, measurements);
         }
 
-        if (use_display) {
-            update_display(balance_bits, measurements);
-        }
+        update_display(balance_bits, measurements);
     }
     if (millis() - last_blink_time < BLINK_TIME) {
         if ((millis() - last_blink_time) % 100 < 50) {

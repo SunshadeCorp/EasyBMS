@@ -1,23 +1,19 @@
 #include "display.hpp"
 
-#include <Free_Fonts.h>
 #include <SPI.h>
-#include <TFT_eSPI.h>
 
 #include <array>
 
-const uint8_t char_height = 10;
-const uint8_t char_width = 8;
-const uint16_t text_color = 0xFFFF;
-const uint16_t background_color = 0x0000;
+Display::Display() : _tft(TFT_eSPI()) {
+    for (auto& row : _old_chars) {
+        for (auto& c : row) {
+            c = ' ';
+        }
+    }
+    clear();
+}
 
-std::array<std::array<char, 22>, 12> old_chars;
-std::array<std::array<char, 22>, 12> screen_chars;
-
-// Configured in User_Setup.h
-TFT_eSPI tft = TFT_eSPI();
-
-String format(float value, uint8_t decplaces, float min, float max, String unit = "") {
+String Display::format(float value, uint8_t decplaces, float min, float max, String unit) {
     if (value < max && value >= min) {
         return String(value, decplaces) + unit;
     } else {
@@ -25,52 +21,55 @@ String format(float value, uint8_t decplaces, float min, float max, String unit 
     }
 }
 
-String format_temp(float value) {
+String Display::format_temp(float value) {
     return format(value, 1, -99.9, 99.9, "C");
 }
 
-String format_cell_voltage(float value) {
+String Display::format_cell_voltage(float value) {
     return format(value, 3, 0, 9.999);
 }
 
-void clear() {
-    for (auto& row : screen_chars) {
+void Display::clear() {
+    for (auto& row : _screen_chars) {
         for (auto& c : row) {
             c = ' ';
         }
     }
 }
 
-void print(uint8_t column, uint8_t row, String text) {
-    for (size_t x = column; x < screen_chars[row].size(); x++) {
-        screen_chars[row][x] = text[x - column];
+void Display::print(uint8_t column, uint8_t row, String text) {
+    for (size_t x = column; x < _screen_chars[row].size(); x++) {
+        _screen_chars[row][x] = text[x - column];
     }
 }
 
-void draw() {
-    for (size_t row = 0; row < screen_chars.size(); row++) {
-        for (size_t column = 0; column < screen_chars[row].size(); column++) {
-            auto c_new = screen_chars[row][column];
-            auto c_old = old_chars[row][column];
+void Display::flip() {
+    for (size_t row = 0; row < _screen_chars.size(); row++) {
+        for (size_t column = 0; column < _screen_chars[row].size(); column++) {
+            Serial.print(_screen_chars[row][column]);
+            auto c_new = _screen_chars[row][column];
+            auto c_old = _old_chars[row][column];
             if (c_new != c_old) {
                 // Paint over
-                tft.setTextColor(background_color);
-                tft.setCursor(char_width * column, (row + 1) * char_height);
-                tft.print(old_chars[row][column]);
+                _tft.setTextColor(_background_color);
+                _tft.setCursor(_char_width * column, (row + 1) * _char_height);
+                _tft.print(_old_chars[row][column]);
 
-                // Paint New
-                tft.setTextColor(text_color);
-                tft.setCursor(char_width * column, (row + 1) * char_height);
-                tft.print(screen_chars[row][column]);
+                // Paint new
+                _tft.setTextColor(_text_color);
+                _tft.setCursor(_char_width * column, (row + 1) * _char_height);
+                _tft.print(_screen_chars[row][column]);
             }
         }
+        Serial.print("\n");
     }
+    Serial.print("\n");
 
-    old_chars = screen_chars;
+    _old_chars = _screen_chars;
     clear();
 }
 
-void display_draw(const DisplayData& data) {
+void Display::draw(const DisplayData& data) {
     // Print Cell Voltages
     for (int i = 0; i < 12; i++) {
         String cell_voltage = format_cell_voltage(data.measurements.cell_voltages[i]);
@@ -107,13 +106,14 @@ void display_draw(const DisplayData& data) {
     print(7, 8, "t2: " + module_temp_2);
     print(7, 9, "ti: " + chip_temp);
 
-    draw();
+    flip();
 }
 
-void display_init(void) {
-    tft.init();
-    tft.fillScreen(background_color);
-    tft.setRotation(1);
-    tft.setFreeFont(&Roboto_Mono_Light_13);
+void Display::init(void) {
+    _tft.init();
+    _tft.fillScreen(_background_color);
+    _tft.setRotation(1);
+    _tft.setFreeFont(&Roboto_Mono_Light_13);
+
     clear();
 }
