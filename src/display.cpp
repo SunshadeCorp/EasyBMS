@@ -25,6 +25,8 @@ String format(float value, uint8_t decplaces, float min, float max, String unit 
     }
 }
 
+String format_temp(float value) { return format(value, 1, -99.9, 99.9, "C"); }
+
 void clear() {
     for (auto& row : screen_chars) {
         for (auto& c : row) {
@@ -84,9 +86,9 @@ void display_draw(const DisplayData& data) {
     String min_cell_voltage = format(data.measurements.min_cell_voltage, 3, 0, 9.999);
     String avg_cell_voltage = format(data.measurements.avg_cell_voltage, 3, 0, 9.999);
     String max_cell_voltage = format(data.measurements.max_cell_voltage, 3, 0, 9.999);
-    String module_temp_1 = format(data.measurements.module_temp_1, 1, 0, 99.9, "C");
-    String module_temp_2 = format(data.measurements.module_temp_2, 1, -99.9, 99.9, "C");
-    String chip_temp = format(data.measurements.chip_temp, 1, -99.9, 99.9, "C");
+    String module_temp_1 = format_temp(data.measurements.module_temp_1);
+    String module_temp_2 = format_temp(data.measurements.module_temp_2);
+    String chip_temp = format_temp(data.measurements.chip_temp);
 
     print(7, 0, "Dif:" + cell_diff);
     print(7, 1, "Tre:" + cell_diff_trend);
