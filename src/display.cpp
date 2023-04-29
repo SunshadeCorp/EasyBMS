@@ -46,7 +46,6 @@ void Display::print(uint8_t column, uint8_t row, String text) {
 void Display::flip() {
     for (size_t row = 0; row < _screen_chars.size(); row++) {
         for (size_t column = 0; column < _screen_chars[row].size(); column++) {
-            Serial.print(_screen_chars[row][column]);
             auto c_new = _screen_chars[row][column];
             auto c_old = _old_chars[row][column];
             if (c_new != c_old) {
@@ -61,9 +60,7 @@ void Display::flip() {
                 _tft.print(_screen_chars[row][column]);
             }
         }
-        Serial.print("\n");
     }
-    Serial.print("\n");
 
     _old_chars = _screen_chars;
     clear();
@@ -74,7 +71,9 @@ void Display::draw(const DisplayData& data) {
     for (int i = 0; i < 12; i++) {
         String cell_voltage = format_cell_voltage(data.measurements.cell_voltages[i]);
         print(0, i, cell_voltage);
+        Serial.println(cell_voltage);
     }
+    Serial.println();
 
     // Print Balance Bits
     for (int i = 0; i < 12; i++) {
