@@ -1,23 +1,23 @@
 #include <ESP8266httpUpdate.h>
-#include "ltc_wrapper.hpp"
 #include <PubSubClient.h>
 
-#include "config.h"
-#include "version.h"
-#include "display.hpp"
-#include "soc.hpp"
-#include "wifi.hpp"
-#include "TimedHistory.hpp"
 #include "Measurements.hpp"
+#include "TimedHistory.hpp"
+#include "config.h"
+#include "display.hpp"
+#include "ltc_wrapper.hpp"
 #include "single_mode_balancer.hpp"
+#include "soc.hpp"
+#include "version.h"
+#include "wifi.hpp"
 
 #define DEBUG
 #define SSL_ENABLED false
 
 #ifdef DEBUG
-#define DEBUG_BEGIN(...) Serial.begin( __VA_ARGS__ )
-#define DEBUG_PRINT(...) Serial.print( __VA_ARGS__ )
-#define DEBUG_PRINTLN(...) Serial.println( __VA_ARGS__ )
+#define DEBUG_BEGIN(...) Serial.begin(__VA_ARGS__)
+#define DEBUG_PRINT(...) Serial.print(__VA_ARGS__)
+#define DEBUG_PRINTLN(...) Serial.println(__VA_ARGS__)
 #else
 #define DEBUG_BEGIN(...)
 #define DEBUG_PRINT(...)
@@ -49,10 +49,10 @@ unsigned long last_connection = 0;
 unsigned long last_blink_time = 0;
 unsigned long long last_master_uptime = 0;
 
-SingleModeBalancer single_balancer = SingleModeBalancer(60*1000, 10*1000);
+SingleModeBalancer single_balancer = SingleModeBalancer(60 * 1000, 10 * 1000);
 
 // Store cell diff history with 1h retention and 1 min granularity
-auto cell_diff_history = TimedHistory<float>(1000*60*60, 1000*60);
+auto cell_diff_history = TimedHistory<float>(1000 * 60 * 60, 1000 * 60);
 
 bool led_builtin_state = false;
 
@@ -71,30 +71,14 @@ boolean publish(String topic, String value) {
     return client.publish(topic.c_str(), value.c_str(), true);
 }
 
-boolean subscribe(String topic) {
-    return client.subscribe(topic.c_str());
-}
+boolean subscribe(String topic) { return client.subscribe(topic.c_str()); }
 
-String cpu_description() {
-    return
-        String(EspClass::getChipId(), HEX) +
-        " " +
-        EspClass::getCpuFreqMHz() + " MHz";
-}
+String cpu_description() { return String(EspClass::getChipId(), HEX) + " " + EspClass::getCpuFreqMHz() + " MHz"; }
 
 String flash_description() {
-    return
-        String(EspClass::getFlashChipId(), HEX) +
-        ", " +
-        (EspClass::getFlashChipSize() / 1024 / 1024) +
-        " of " +
-        (EspClass::getFlashChipRealSize() / 1024 / 1024) +
-        " MiB, Mode: " +
-        EspClass::getFlashChipMode() +
-        ", Speed: " +
-        (EspClass::getFlashChipSpeed() / 1000 / 1000) +
-        " MHz, Vendor: " +
-        String(EspClass::getFlashChipVendorId(), HEX);
+    return String(EspClass::getFlashChipId(), HEX) + ", " + (EspClass::getFlashChipSize() / 1024 / 1024) + " of " +
+           (EspClass::getFlashChipRealSize() / 1024 / 1024) + " MiB, Mode: " + EspClass::getFlashChipMode() +
+           ", Speed: " + (EspClass::getFlashChipSpeed() / 1000 / 1000) + " MHz, Vendor: " + String(EspClass::getFlashChipVendorId(), HEX);
 }
 
 String battery_type_description() {
@@ -124,8 +108,7 @@ void reconnect() {
     while (!client.connected()) {
         DEBUG_PRINT("Attempting MQTT connection...");
         // Attempt to connect
-        if (client.connect(hostname.c_str(), mqtt_username, mqtt_password, (module_topic + "/available").c_str(), 0,
-                           true, "offline")) {
+        if (client.connect(hostname.c_str(), mqtt_username, mqtt_password, (module_topic + "/available").c_str(), 0, true, "offline")) {
             DEBUG_PRINTLN("connected");
             // Once connected, publish an announcement
             publish(module_topic + "/available", "online");
@@ -178,11 +161,9 @@ String cell_name_from_id(size_t cell_id) {
     return String(cell_number);
 }
 
-bool string_is_uint(const String &myString) {
-    return std::all_of(myString.begin(), myString.end(), isDigit);
-}
+bool string_is_uint(const String& myString) { return std::all_of(myString.begin(), myString.end(), isDigit); }
 
-int cell_id_from_name(const String &cell_name) {
+int cell_id_from_name(const String& cell_name) {
     // cell number needs to be an unsigned integer
     if (!string_is_uint(cell_name)) {
         return -1;
@@ -232,7 +213,7 @@ Measurements get_measurements() {
     float voltage_min = cell_voltages[0];
     float voltage_max = cell_voltages[0];
     for (size_t i = 0; i < cell_voltages.size(); i++) {
-        if (battery_type == BatteryType::meb8s && i >=4 && i < 8) {
+        if (battery_type == BatteryType::meb8s && i >= 4 && i < 8) {
             continue;
         }
 
@@ -278,13 +259,13 @@ Measurements get_measurements() {
         if (current_time > history_timestamp) {
             // Cell diff change per hour in the last hour
             float change = m.cell_diff - history_cell_diff;
-            float time_hours = (float)(current_time - history_timestamp) / (float)(1000*60*60);
+            float time_hours = (float)(current_time - history_timestamp) / (float)(1000 * 60 * 60);
             m.cell_diff_trend = change / time_hours;
             DEBUG_PRINT(String("Cell Diff Trend: ") + m.cell_diff_trend + " mV/h");
         }
     }
 
-    return m; 
+    return m;
 }
 
 void publish_mqtt_values(const std::bitset<12>& balance_bits, const String& topic, const Measurements& m) {
@@ -306,10 +287,10 @@ void publish_mqtt_values(const std::bitset<12>& balance_bits, const String& topi
     publish(mac_topic + "/auto_detect_battery_type", auto_detect_battery_type);
 }
 
-void callback(char *topic, byte *payload, unsigned int length) {
+void callback(char* topic, byte* payload, unsigned int length) {
     String topic_string = String(topic);
     String payload_string = String();
-    payload_string.concat((char *) payload, length);
+    payload_string.concat((char*)payload, length);
     if (topic_string == "master/uptime") {
         DEBUG_PRINT("Got heartbeat from master: ");
         DEBUG_PRINTLN(payload_string);
@@ -357,8 +338,7 @@ void callback(char *topic, byte *payload, unsigned int length) {
         last_blink_time = millis();
     } else if (topic_string == mac_topic + "/set_config") {
         String module_number_string = payload_string.substring(0, payload_string.indexOf(","));
-        String total_voltage_measurer_string = payload_string.substring(payload_string.indexOf(",") + 1,
-                                                                        payload_string.lastIndexOf(","));
+        String total_voltage_measurer_string = payload_string.substring(payload_string.indexOf(",") + 1, payload_string.lastIndexOf(","));
         String total_current_measurer_string = payload_string.substring(payload_string.lastIndexOf(",") + 1);
         module_topic = String("esp-module/") + module_number_string;
         client.disconnect();
@@ -383,8 +363,7 @@ void callback(char *topic, byte *payload, unsigned int length) {
                 error_string += "\n";
                 DEBUG_PRINTLN(error_string);
                 publish(mac_topic + "/ota_ret", error_string);
-            }
-                break;
+            } break;
             case HTTP_UPDATE_NO_UPDATES:
                 DEBUG_PRINTLN("HTTP_UPDATE_NO_UPDATES");
                 publish(mac_topic + "/ota_ret", "HTTP_UPDATE_NO_UPDATES");
@@ -447,7 +426,7 @@ void update_display(const std::bitset<12>& balance_bits, const Measurements& m) 
     data.balance_bits = balance_bits;
     data.uptime_seconds = millis() / 1000;
 
-    draw_cell_voltages(data);
+    display_draw(data);
 }
 
 // the loop function runs over and over again forever
