@@ -73,7 +73,7 @@ void draw() {
 void display_draw(const DisplayData& data) {
     // Print Cell Voltages
     for (int i = 0; i < 12; i++) {
-        String cell_voltage = format(data.measurements.cell_voltages[i], 3, 0, 9.999);
+        String cell_voltage = format_cell_voltage(data.measurements.cell_voltages[i]);
         print(0, i, cell_voltage);
     }
 
