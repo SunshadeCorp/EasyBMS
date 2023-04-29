@@ -71,9 +71,7 @@ void Display::draw(const DisplayData& data) {
     for (int i = 0; i < 12; i++) {
         String cell_voltage = format_cell_voltage(data.measurements.cell_voltages[i]);
         print(0, i, cell_voltage);
-        Serial.println(cell_voltage);
     }
-    Serial.println();
 
     // Print Balance Bits
     for (int i = 0; i < 12; i++) {

@@ -79,9 +79,15 @@ float ltc_chip_temp() {
 
 std::array<float, 12> ltc_cell_voltages() {
     std::array<float, 12> voltages;
-    if (!LTC.getCellVoltages(voltages)) {
+    if (!LTC.getCellVoltages<12>(voltages)) {
         pec15_error_count++;
+        Serial.println("error");
     }
+
+    for (int i = 0; i < 12; i++) {
+        Serial.println(voltages[i]);
+    }
+    Serial.println();
 
     return voltages;
 }
