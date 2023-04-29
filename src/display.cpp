@@ -66,7 +66,7 @@ void display_init(void) {
   tft.setTextColor(0xFFFF, 0x0000);
   tft.setTextWrap(false);
   //tft.loadFont(AA_FONT);    // Must load the font first
-  tft.setFreeFont(&Open_Sans_Regular_13);
+  tft.setFreeFont(&Roboto_Mono_Light_13);
 }
 
 void printValue(int x, int y, float value, int decplaces, float min, float max, String prefix, String unit)
