@@ -1,6 +1,8 @@
 #include <ESP8266httpUpdate.h>
 #include <PubSubClient.h>
 
+#include <map>
+
 #include "battery_monitor.hpp"
 #include "config.h"
 #include "display.hpp"
@@ -67,7 +69,19 @@ boolean publish(String topic, String value) {
     return client.publish(topic.c_str(), value.c_str(), true);
 }
 
-boolean subscribe(String topic) {
+using MqttCallback = std::function<void(const String&, const String&)>;
+std::map<String, MqttCallback> mqtt_callbacks;
+
+void pub_sub_client_callback(char* topic, byte* payload, unsigned int length) {
+    String topic_string = String(topic);
+    String payload_string = String();
+    payload_string.concat((char*)payload, length);
+
+    mqtt_callbacks[topic_string](topic_string, payload_string);
+}
+
+boolean subscribe(String topic, MqttCallback callback) {
+    mqtt_callbacks[topic] = callback;
     return client.subscribe(topic.c_str());
 }
 
@@ -103,6 +117,14 @@ String bms_mode_description() {
     }
 }
 
+void on_mqtt_master_uptime(String, String);
+void on_mqtt_balance_request(String, String);
+void on_mqtt_read_accurate(String, String);
+void on_mqtt_blink(String, String);
+void on_mqtt_set_config(String, String);
+void on_mqtt_restart(String, String);
+void on_mqtt_ota(String, String);
+
 void reconnect() {
     // Loop until we're reconnected
     while (!client.connected()) {
@@ -125,15 +147,15 @@ void reconnect() {
             publish(mac_topic + "/flash", flash_description());
             publish(mac_topic + "/bms_mode", bms_mode_description());
             // Resubscribe
-            subscribe("master/uptime");
+            subscribe("master/uptime", on_mqtt_master_uptime);
             for (int i = 0; i < 12; ++i) {
-                subscribe(module_topic + "/cell/" + (i + 1) + "/balance_request");
+                subscribe(module_topic + "/cell/" + (i + 1) + "/balance_request", on_mqtt_balance_request);
             }
-            subscribe(module_topic + "/read_accurate");
-            subscribe(mac_topic + "/blink");
-            subscribe(mac_topic + "/set_config");
-            subscribe(mac_topic + "/restart");
-            subscribe(mac_topic + "/ota");
+            subscribe(module_topic + "/read_accurate", on_mqtt_read_accurate);
+            subscribe(mac_topic + "/blink", on_mqtt_blink);
+            subscribe(mac_topic + "/set_config", on_mqtt_set_config);
+            subscribe(mac_topic + "/restart", on_mqtt_restart);
+            subscribe(mac_topic + "/ota", on_mqtt_ota);
         } else {
             DEBUG_PRINT("failed, rc=");
             DEBUG_PRINT(client.state());
@@ -288,92 +310,99 @@ void publish_mqtt_values(const std::bitset<12>& balance_bits, const String& topi
     publish(mac_topic + "/auto_detect_battery_type", auto_detect_battery_type);
 }
 
-void callback(char* topic, byte* payload, unsigned int length) {
-    String topic_string = String(topic);
-    String payload_string = String();
-    payload_string.concat((char*)payload, length);
-    if (topic_string == "master/uptime") {
-        DEBUG_PRINT("Got heartbeat from master: ");
-        DEBUG_PRINTLN(payload_string);
+void on_mqtt_master_uptime(String topic_string, String payload_string) {
+    DEBUG_PRINT("Got heartbeat from master: ");
+    DEBUG_PRINTLN(payload_string);
 
-        digitalWrite(LED_BUILTIN, led_builtin_state);
-        led_builtin_state = !led_builtin_state;
+    digitalWrite(LED_BUILTIN, led_builtin_state);
+    led_builtin_state = !led_builtin_state;
 
-        unsigned long long uptime_u_long = std::stoull(payload_string.c_str());
+    unsigned long long uptime_u_long = std::stoull(payload_string.c_str());
 
-        if (uptime_u_long - last_master_uptime > MASTER_TIMEOUT) {
-            DEBUG_PRINTLN(uptime_u_long);
-            DEBUG_PRINTLN(last_master_uptime);
-            DEBUG_PRINTLN(">>> Master Timeout!!");
+    if (uptime_u_long - last_master_uptime > MASTER_TIMEOUT) {
+        DEBUG_PRINTLN(uptime_u_long);
+        DEBUG_PRINTLN(last_master_uptime);
+        DEBUG_PRINTLN(">>> Master Timeout!!");
+    }
+    last_master_uptime = uptime_u_long;
+}
+
+void on_mqtt_balance_request(String topic_string, String payload_string) {
+    String cell_name = topic_string.substring((module_topic + "/cell/").length());
+    cell_name = cell_name.substring(0, cell_name.indexOf("/"));
+    long cell_id = cell_id_from_name(cell_name);
+    if (cell_id == -1) {
+        return;
+    }
+    if (topic_string == module_topic + "/cell/" + cell_name + "/balance_request" && bms_mode == BmsMode::slave) {
+        unsigned long balance_time = std::stoul(payload_string.c_str());
+        cells_to_balance_start.at(cell_id) = millis();
+        cells_to_balance_interval.at(cell_id) = balance_time;
+    }
+}
+
+void on_mqtt_read_accurate(String topic_string, String payload_string) {
+    if (payload_string == "1") {
+        last_ltc_check = millis();
+        std::bitset<12> balance_bits = slave_balance_bits();
+        WiFi.forceSleepBegin();
+        delay(1);
+        battery_monitor.set_balance_bits(balance_bits);
+        WiFi.forceSleepWake();
+        delay(1);
+        while (WiFi.status() != WL_CONNECTED) {
+            delay(100);
         }
-        last_master_uptime = uptime_u_long;
-    } else if (topic_string.startsWith(module_topic + "/cell/")) {
-        String cell_name = topic_string.substring((module_topic + "/cell/").length());
-        cell_name = cell_name.substring(0, cell_name.indexOf("/"));
-        long cell_id = cell_id_from_name(cell_name);
-        if (cell_id == -1) {
-            return;
-        }
-        if (topic_string == module_topic + "/cell/" + cell_name + "/balance_request" && bms_mode == BmsMode::slave) {
-            unsigned long balance_time = std::stoul(payload_string.c_str());
-            cells_to_balance_start.at(cell_id) = millis();
-            cells_to_balance_interval.at(cell_id) = balance_time;
-        }
-    } else if (topic_string == module_topic + "/read_accurate") {
-        if (payload_string == "1") {
-            last_ltc_check = millis();
-            std::bitset<12> balance_bits = slave_balance_bits();
-            WiFi.forceSleepBegin();
-            delay(1);
-            battery_monitor.set_balance_bits(balance_bits);
-            WiFi.forceSleepWake();
-            delay(1);
-            while (WiFi.status() != WL_CONNECTED) {
-                delay(100);
-            }
-            reconnect();
-            Measurements m = get_measurements();
-            publish_mqtt_values(balance_bits, module_topic + "/accurate", m);
-        }
-    } else if (topic_string == mac_topic + "/blink") {
-        last_blink_time = millis();
-    } else if (topic_string == mac_topic + "/set_config") {
-        String module_number_string = payload_string.substring(0, payload_string.indexOf(","));
-        String total_voltage_measurer_string = payload_string.substring(payload_string.indexOf(",") + 1, payload_string.lastIndexOf(","));
-        String total_current_measurer_string = payload_string.substring(payload_string.lastIndexOf(",") + 1);
-        module_topic = String("esp-module/") + module_number_string;
-        client.disconnect();
         reconnect();
-    } else if (topic_string == mac_topic + "/restart") {
-        if (payload_string == "1") {
-            EspClass::restart();
-        }
-    } else if (topic_string == mac_topic + "/ota") {
-        publish(mac_topic + "/ota_start", String("ota started [") + payload_string + "] (" + millis() + ")");
-        publish(mac_topic + "/ota_url", String("https://") + ota_server + payload_string);
-        WiFiClientSecure client_secure;
-        client_secure.setTrustAnchors(&cert);
-        client_secure.setTimeout(60);
-        ESPhttpUpdate.setLedPin(LED_BUILTIN, HIGH);
-        switch (ESPhttpUpdate.update(client_secure, String("https://") + ota_server + payload_string)) {
-            case HTTP_UPDATE_FAILED: {
-                String error_string = String("HTTP_UPDATE_FAILED Error (");
-                error_string += ESPhttpUpdate.getLastError();
-                error_string += "): ";
-                error_string += ESPhttpUpdate.getLastErrorString();
-                error_string += "\n";
-                DEBUG_PRINTLN(error_string);
-                publish(mac_topic + "/ota_ret", error_string);
-            } break;
-            case HTTP_UPDATE_NO_UPDATES:
-                DEBUG_PRINTLN("HTTP_UPDATE_NO_UPDATES");
-                publish(mac_topic + "/ota_ret", "HTTP_UPDATE_NO_UPDATES");
-                break;
-            case HTTP_UPDATE_OK:
-                DEBUG_PRINTLN("HTTP_UPDATE_OK");
-                publish(mac_topic + "/ota_ret", "HTTP_UPDATE_OK");
-                break;
-        }
+        Measurements m = get_measurements();
+        publish_mqtt_values(balance_bits, module_topic + "/accurate", m);
+    }
+}
+
+void on_mqtt_blink(String topic_string, String payload_string) {
+    last_blink_time = millis();
+}
+
+void on_mqtt_restart(String topic_string, String payload_string) {
+    if (payload_string == "1") {
+        EspClass::restart();
+    }
+}
+
+void on_mqtt_set_config(String topic_string, String payload_string) {
+    String module_number_string = payload_string.substring(0, payload_string.indexOf(","));
+    String total_voltage_measurer_string = payload_string.substring(payload_string.indexOf(",") + 1, payload_string.lastIndexOf(","));
+    String total_current_measurer_string = payload_string.substring(payload_string.lastIndexOf(",") + 1);
+    module_topic = String("esp-module/") + module_number_string;
+    client.disconnect();
+    reconnect();
+}
+
+void on_mqtt_ota(String topic_string, String payload_string) {
+    publish(mac_topic + "/ota_start", String("ota started [") + payload_string + "] (" + millis() + ")");
+    publish(mac_topic + "/ota_url", String("https://") + ota_server + payload_string);
+    WiFiClientSecure client_secure;
+    client_secure.setTrustAnchors(&cert);
+    client_secure.setTimeout(60);
+    ESPhttpUpdate.setLedPin(LED_BUILTIN, HIGH);
+    switch (ESPhttpUpdate.update(client_secure, String("https://") + ota_server + payload_string)) {
+        case HTTP_UPDATE_FAILED: {
+            String error_string = String("HTTP_UPDATE_FAILED Error (");
+            error_string += ESPhttpUpdate.getLastError();
+            error_string += "): ";
+            error_string += ESPhttpUpdate.getLastErrorString();
+            error_string += "\n";
+            DEBUG_PRINTLN(error_string);
+            publish(mac_topic + "/ota_ret", error_string);
+        } break;
+        case HTTP_UPDATE_NO_UPDATES:
+            DEBUG_PRINTLN("HTTP_UPDATE_NO_UPDATES");
+            publish(mac_topic + "/ota_ret", "HTTP_UPDATE_NO_UPDATES");
+            break;
+        case HTTP_UPDATE_OK:
+            DEBUG_PRINTLN("HTTP_UPDATE_OK");
+            publish(mac_topic + "/ota_ret", "HTTP_UPDATE_OK");
+            break;
     }
 }
 
@@ -403,7 +432,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
 
     battery_monitor.init();
 
-    client.setCallback(callback);
+    client.setCallback(pub_sub_client_callback);
 
     if (battery_type == BatteryType::mebAuto) {
         auto_detect_battery_type = true;
