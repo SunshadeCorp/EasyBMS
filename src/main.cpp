@@ -33,12 +33,6 @@ String mac_topic;
 String module_topic;
 bool auto_detect_battery_type;
 
-#if SSL_ENABLED
-WiFiClientSecure espClient;
-#else
-WiFiClient espClient;
-#endif
-
 PubSubClient client(mqtt_server, mqtt_port, espClient);
 
 std::array<unsigned long, 12> cells_to_balance_start{};
@@ -51,7 +45,7 @@ unsigned long long last_master_uptime = 0;
 
 BatteryMonitor battery_monitor(DEBUG);
 SingleModeBalancer single_balancer = SingleModeBalancer(60 * 1000, 10 * 1000);
-Display display = Display();
+Display display;
 
 // Store cell diff history with 1h retention and 1 min granularity
 auto cell_diff_history = TimedHistory<float>(1000 * 60 * 60, 1000 * 60);
@@ -407,12 +401,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
         digitalWrite(LED_BUILTIN, true);
     }
 
-    randomSeed(micros());
     battery_monitor.init();
-
-#if SSL_ENABLED
-    espClient.setTrustAnchors(&mqtt_cert_store);
-#endif
 
     client.setCallback(callback);
 

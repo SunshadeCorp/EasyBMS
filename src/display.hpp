@@ -18,7 +18,6 @@ struct DisplayData {
     Measurements measurements;
     std::bitset<12> balance_bits;
     long uptime_seconds;
-    bool ltc_error;
 };
 
 class Display {

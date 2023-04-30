@@ -7,6 +7,8 @@
 BatteryMonitor::BatteryMonitor(bool debug_mode) : _ltc(LTC68041(D8)) {
     _pec15_error_count = 0;
     _debug_mode = debug_mode;
+    _measure_error = false;
+    _balance_error = false;
 }
 
 void BatteryMonitor::init() {
@@ -18,6 +20,8 @@ float BatteryMonitor::raw_voltage_to_real_module_temp(float raw_voltage) {
 }
 
 void BatteryMonitor::set_balance_bits(const std::bitset<12> &balance_bits) {
+    _balance_error = false;
+
     if (_ltc.checkSPI(_debug_mode)) {
         digitalWrite(D1, HIGH);
     } else {
@@ -46,6 +50,7 @@ void BatteryMonitor::set_balance_bits(const std::bitset<12> &balance_bits) {
     delay(5);  // Wait until conversion is finished
     if (!_ltc.cfgRead()) {
         _pec15_error_count++;
+        _balance_error = true;
     }
 
     // Print the clear text values cellVoltage, gpioVoltage, Undervoltage Bits, Overvoltage Bits
@@ -75,19 +80,25 @@ float BatteryMonitor::chip_temp() {
 
 std::array<float, 12> BatteryMonitor::cell_voltages() {
     std::array<float, 12> voltages;
-    if (!_ltc.getCellVoltages<12>(voltages)) {
+    bool success = _ltc.getCellVoltages<12>(voltages);
+    if (success) {
+        _measure_error = false;
+    } else {
         _pec15_error_count++;
-        Serial.println("error");
+        _measure_error = true;
     }
-
-    for (int i = 0; i < 12; i++) {
-        Serial.println(voltages[i]);
-    }
-    Serial.println();
 
     return voltages;
 }
 
 unsigned long BatteryMonitor::error_count() {
     return _pec15_error_count;
+}
+
+bool BatteryMonitor::measure_error() {
+    return _measure_error;
+}
+
+bool BatteryMonitor::balance_error() {
+    return _balance_error;
 }

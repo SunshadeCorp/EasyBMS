@@ -1,6 +1,12 @@
+#include <Arduino.h>
 #include <ESP8266WiFi.h>
 #include <lwip/dns.h>
-#include <Arduino.h>
+
+#if SSL_ENABLED
+WiFiClientSecure espClient;
+#else
+WiFiClient espClient;
+#endif
 
 void connect_wifi(String hostname, String ssid, String password) {
     Serial.println();
@@ -24,8 +30,12 @@ void connect_wifi(String hostname, String ssid, String password) {
     Serial.println(IPAddress(dns_getserver(0)));
     Serial.println("DNS2: ");
     Serial.println(IPAddress(dns_getserver(1)));
-}
 
+    randomSeed(micros());
+#if SSL_ENABLED
+    espClient.setTrustAnchors(&mqtt_cert_store);
+#endif
+}
 
 String mac_string() {
     uint8_t mac[6];
