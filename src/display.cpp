@@ -13,6 +13,13 @@ Display::Display() : _tft(TFT_eSPI()) {
     clear();
 }
 
+void Display::init() {
+    _tft.init();
+    _tft.fillScreen(_background_color);
+    _tft.setRotation(1);
+    _tft.setFreeFont(&Roboto_Mono_Light_13);
+}
+
 String Display::format(float value, uint8_t decplaces, float min, float max, String unit) {
     if (value < max && value >= min) {
         return String(value, decplaces) + unit;
@@ -104,13 +111,4 @@ void Display::draw(const DisplayData& data) {
     print(7, 9, "ti: " + chip_temp);
 
     flip();
-}
-
-void Display::init(void) {
-    _tft.init();
-    _tft.fillScreen(_background_color);
-    _tft.setRotation(1);
-    _tft.setFreeFont(&Roboto_Mono_Light_13);
-
-    clear();
 }

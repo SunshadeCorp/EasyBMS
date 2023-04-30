@@ -1,20 +1,20 @@
 #include <ESP8266httpUpdate.h>
 #include <PubSubClient.h>
 
-#include "Measurements.hpp"
-#include "TimedHistory.hpp"
+#include "battery_monitor.hpp"
 #include "config.h"
 #include "display.hpp"
-#include "ltc_wrapper.hpp"
+#include "measurements.hpp"
 #include "single_mode_balancer.hpp"
 #include "soc.hpp"
+#include "timed_history.hpp"
 #include "version.h"
 #include "wifi.hpp"
 
-#define DEBUG
+#define DEBUG true
 #define SSL_ENABLED false
 
-#ifdef DEBUG
+#if DEBUG
 #define DEBUG_BEGIN(...) Serial.begin(__VA_ARGS__)
 #define DEBUG_PRINT(...) Serial.print(__VA_ARGS__)
 #define DEBUG_PRINTLN(...) Serial.println(__VA_ARGS__)
@@ -49,6 +49,7 @@ unsigned long last_connection = 0;
 unsigned long last_blink_time = 0;
 unsigned long long last_master_uptime = 0;
 
+BatteryMonitor battery_monitor(DEBUG);
 SingleModeBalancer single_balancer = SingleModeBalancer(60 * 1000, 10 * 1000);
 Display display = Display();
 
@@ -210,7 +211,7 @@ std::bitset<12> slave_balance_bits() {
 }
 
 Measurements get_measurements() {
-    std::array<float, 12> cell_voltages = ltc_cell_voltages();
+    std::array<float, 12> cell_voltages = battery_monitor.cell_voltages();
 
     if (auto_detect_battery_type) {
         battery_type = detect_battery_type(cell_voltages);
@@ -244,10 +245,10 @@ Measurements get_measurements() {
         m.cell_diffs_to_avg[i] = cell_voltages[i] - voltage_avg;
     }
     m.cell_voltages = cell_voltages;
-    m.module_voltage = ltc_module_voltage();
-    m.module_temp_1 = ltc_module_temp_1();
-    m.module_temp_2 = ltc_module_temp_2();
-    m.chip_temp = ltc_chip_temp();
+    m.module_voltage = battery_monitor.module_voltage();
+    m.module_temp_1 = battery_monitor.module_temp_1();
+    m.module_temp_2 = battery_monitor.module_temp_2();
+    m.chip_temp = battery_monitor.chip_temp();
     m.avg_cell_voltage = voltage_avg;
     m.min_cell_voltage = voltage_min;
     m.max_cell_voltage = voltage_max;
@@ -276,7 +277,7 @@ Measurements get_measurements() {
 
 void publish_mqtt_values(const std::bitset<12>& balance_bits, const String& topic, const Measurements& m) {
     publish(module_topic + "/uptime", millis());
-    publish(module_topic + "/pec15_error_count", ltc_error_count());
+    publish(module_topic + "/pec15_error_count", battery_monitor.error_count());
 
     for (size_t i = 0; i < m.cell_voltages.size(); i++) {
         String cell_name = cell_name_from_id(i);
@@ -330,7 +331,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
             std::bitset<12> balance_bits = slave_balance_bits();
             WiFi.forceSleepBegin();
             delay(1);
-            ltc_set_balance_bits(balance_bits);
+            battery_monitor.set_balance_bits(balance_bits);
             WiFi.forceSleepWake();
             delay(1);
             while (WiFi.status() != WL_CONNECTED) {
@@ -407,7 +408,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
     }
 
     randomSeed(micros());
-    ltc_init();
+    battery_monitor.init();
 
 #if SSL_ENABLED
     espClient.setTrustAnchors(&mqtt_cert_store);
@@ -458,7 +459,7 @@ void loop() {
         } else {
             balance_bits = std::bitset<12>(0);
         }
-        ltc_set_balance_bits(balance_bits);
+        battery_monitor.set_balance_bits(balance_bits);
 
         if (use_mqtt) {
             publish_mqtt_values(balance_bits, module_topic, measurements);

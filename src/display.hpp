@@ -4,7 +4,7 @@
 
 #include <array>
 
-#include "Measurements.hpp"
+#include "measurements.hpp"
 
 /*
 #define TFT_CS     D0
@@ -18,6 +18,7 @@ struct DisplayData {
     Measurements measurements;
     std::bitset<12> balance_bits;
     long uptime_seconds;
+    bool ltc_error;
 };
 
 class Display {
@@ -25,7 +26,7 @@ class Display {
     Display();
 
     // Initialize the display, sets rotation and font size etc.
-    void init(void);
+    void init();
 
     // Main function to print all BMS data
     void draw(const DisplayData& data);
