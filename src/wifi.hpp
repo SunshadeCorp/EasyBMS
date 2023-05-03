@@ -2,12 +2,6 @@
 #include <ESP8266WiFi.h>
 #include <lwip/dns.h>
 
-#if SSL_ENABLED
-WiFiClientSecure espClient;
-#else
-WiFiClient espClient;
-#endif
-
 void connect_wifi(String hostname, String ssid, String password) {
     Serial.println();
     Serial.println("connecting to ");

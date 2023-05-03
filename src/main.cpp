@@ -1,5 +1,4 @@
 #include <ESP8266httpUpdate.h>
-#include <PubSubClient.h>
 
 #include <map>
 
@@ -7,6 +6,7 @@
 #include "config.h"
 #include "display.hpp"
 #include "measurements.hpp"
+#include "mqtt_client.hpp"
 #include "single_mode_balancer.hpp"
 #include "soc.hpp"
 #include "timed_history.hpp"
@@ -35,8 +35,6 @@ String mac_topic;
 String module_topic;
 bool auto_detect_battery_type;
 
-PubSubClient client(mqtt_server, mqtt_port, espClient);
-
 std::array<unsigned long, 12> cells_to_balance_start{};
 std::array<unsigned long, 12> cells_to_balance_interval{};
 
@@ -46,44 +44,14 @@ unsigned long last_blink_time = 0;
 unsigned long long last_master_uptime = 0;
 
 BatteryMonitor battery_monitor(DEBUG);
-SingleModeBalancer single_balancer = SingleModeBalancer(60 * 1000, 10 * 1000);
+SingleModeBalancer single_balancer(60 * 1000, 10 * 1000);
+MqttClient mqtt(mqtt_server, mqtt_port);
 Display display;
 
 // Store cell diff history with 1h retention and 1 min granularity
 auto cell_diff_history = TimedHistory<float>(1000 * 60 * 60, 1000 * 60);
 
 bool led_builtin_state = false;
-
-template <typename T>
-boolean publish(String topic, T value) {
-    return client.publish(topic.c_str(), String(value).c_str(), true);
-}
-
-template <>
-boolean publish(String topic, char* value) {
-    return client.publish(topic.c_str(), value, true);
-}
-
-template <>
-boolean publish(String topic, String value) {
-    return client.publish(topic.c_str(), value.c_str(), true);
-}
-
-using MqttCallback = std::function<void(const String&, const String&)>;
-std::map<String, MqttCallback> mqtt_callbacks;
-
-void pub_sub_client_callback(char* topic, byte* payload, unsigned int length) {
-    String topic_string = String(topic);
-    String payload_string = String();
-    payload_string.concat((char*)payload, length);
-
-    mqtt_callbacks[topic_string](topic_string, payload_string);
-}
-
-boolean subscribe(String topic, MqttCallback callback) {
-    mqtt_callbacks[topic] = callback;
-    return client.subscribe(topic.c_str());
-}
 
 String cpu_description() {
     return String(EspClass::getChipId(), HEX) + " " + EspClass::getCpuFreqMHz() + " MHz";
@@ -93,28 +61,6 @@ String flash_description() {
     return String(EspClass::getFlashChipId(), HEX) + ", " + (EspClass::getFlashChipSize() / 1024 / 1024) + " of " +
            (EspClass::getFlashChipRealSize() / 1024 / 1024) + " MiB, Mode: " + EspClass::getFlashChipMode() +
            ", Speed: " + (EspClass::getFlashChipSpeed() / 1000 / 1000) + " MHz, Vendor: " + String(EspClass::getFlashChipVendorId(), HEX);
-}
-
-String battery_type_description() {
-    if (battery_type == BatteryType::meb12s) {
-        return "meb12s";
-    } else if (battery_type == BatteryType::meb8s) {
-        return "meb8s";
-    } else if (battery_type == BatteryType::mebAuto) {
-        return "mebAuto";
-    } else {
-        return "invalid";
-    }
-}
-
-String bms_mode_description() {
-    if (bms_mode == BmsMode::single) {
-        return "single";
-    } else if (bms_mode == BmsMode::slave) {
-        return "slave";
-    } else {
-        return "invalid";
-    }
 }
 
 void on_mqtt_master_uptime(String, String);
@@ -127,38 +73,37 @@ void on_mqtt_ota(String, String);
 
 void reconnect() {
     // Loop until we're reconnected
-    while (!client.connected()) {
+    while (!mqtt.connected()) {
         DEBUG_PRINT("Attempting MQTT connection...");
-        // Attempt to connect
-        if (client.connect(hostname.c_str(), mqtt_username, mqtt_password, (module_topic + "/available").c_str(), 0, true, "offline")) {
+        if (mqtt.connect()) {
             DEBUG_PRINTLN("connected");
             // Once connected, publish an announcement
-            publish(module_topic + "/available", "online");
+            mqtt.publish(module_topic + "/available", "online");
             if (!module_topic.equals(mac_topic)) {
-                publish(mac_topic + "/available", "undefined");
+                mqtt.publish(mac_topic + "/available", "undefined");
             }
-            publish(mac_topic + "/module_topic", module_topic);
-            publish(mac_topic + "/version", VERSION);
-            publish(mac_topic + "/build_timestamp", BUILD_TIMESTAMP);
-            publish(mac_topic + "/wifi", WiFi.SSID());
-            publish(mac_topic + "/ip", WiFi.localIP().toString());
-            publish(mac_topic + "/esp_sdk", EspClass::getFullVersion());
-            publish(mac_topic + "/cpu", cpu_description());
-            publish(mac_topic + "/flash", flash_description());
-            publish(mac_topic + "/bms_mode", bms_mode_description());
+            mqtt.publish(mac_topic + "/module_topic", module_topic);
+            mqtt.publish(mac_topic + "/version", VERSION);
+            mqtt.publish(mac_topic + "/build_timestamp", BUILD_TIMESTAMP);
+            mqtt.publish(mac_topic + "/wifi", WiFi.SSID());
+            mqtt.publish(mac_topic + "/ip", WiFi.localIP().toString());
+            mqtt.publish(mac_topic + "/esp_sdk", EspClass::getFullVersion());
+            mqtt.publish(mac_topic + "/cpu", cpu_description());
+            mqtt.publish(mac_topic + "/flash", flash_description());
+            mqtt.publish(mac_topic + "/bms_mode", as_string(bms_mode));
             // Resubscribe
-            subscribe("master/uptime", on_mqtt_master_uptime);
+            mqtt.subscribe("master/uptime", on_mqtt_master_uptime);
             for (int i = 0; i < 12; ++i) {
-                subscribe(module_topic + "/cell/" + (i + 1) + "/balance_request", on_mqtt_balance_request);
+                mqtt.subscribe(module_topic + "/cell/" + (i + 1) + "/balance_request", on_mqtt_balance_request);
             }
-            subscribe(module_topic + "/read_accurate", on_mqtt_read_accurate);
-            subscribe(mac_topic + "/blink", on_mqtt_blink);
-            subscribe(mac_topic + "/set_config", on_mqtt_set_config);
-            subscribe(mac_topic + "/restart", on_mqtt_restart);
-            subscribe(mac_topic + "/ota", on_mqtt_ota);
+            mqtt.subscribe(module_topic + "/read_accurate", on_mqtt_read_accurate);
+            mqtt.subscribe(mac_topic + "/blink", on_mqtt_blink);
+            mqtt.subscribe(mac_topic + "/set_config", on_mqtt_set_config);
+            mqtt.subscribe(mac_topic + "/restart", on_mqtt_restart);
+            mqtt.subscribe(mac_topic + "/ota", on_mqtt_ota);
         } else {
             DEBUG_PRINT("failed, rc=");
-            DEBUG_PRINT(client.state());
+            DEBUG_PRINT(mqtt.state_string());
             if (last_connection != 0 && millis() - last_connection >= 30000) {
                 EspClass::restart();
             }
@@ -183,13 +128,13 @@ String cell_name_from_id(size_t cell_id) {
     return String(cell_number);
 }
 
-bool string_is_uint(const String& myString) {
+bool is_uint(const String& myString) {
     return std::all_of(myString.begin(), myString.end(), isDigit);
 }
 
 int cell_id_from_name(const String& cell_name) {
     // cell number needs to be an unsigned integer
-    if (!string_is_uint(cell_name)) {
+    if (!is_uint(cell_name)) {
         return -1;
     }
 
@@ -292,22 +237,22 @@ Measurements get_measurements() {
 }
 
 void publish_mqtt_values(const std::bitset<12>& balance_bits, const String& topic, const Measurements& m) {
-    publish(module_topic + "/uptime", millis());
-    publish(module_topic + "/pec15_error_count", battery_monitor.error_count());
+    mqtt.publish(module_topic + "/uptime", millis());
+    mqtt.publish(module_topic + "/pec15_error_count", battery_monitor.error_count());
 
     for (size_t i = 0; i < m.cell_voltages.size(); i++) {
         String cell_name = cell_name_from_id(i);
         if (cell_name != "undefined") {
-            publish(topic + "/cell/" + cell_name + "/voltage", String(m.cell_voltages[i], 3));
-            publish(module_topic + "/cell/" + cell_name + "/is_balancing", balance_bits.test(i) ? "1" : "0");
+            mqtt.publish(topic + "/cell/" + cell_name + "/voltage", String(m.cell_voltages[i], 3));
+            mqtt.publish(module_topic + "/cell/" + cell_name + "/is_balancing", balance_bits.test(i) ? "1" : "0");
         }
     }
 
-    publish(topic + "/module_voltage", m.module_voltage);
-    publish(topic + "/module_temps", String(m.module_temp_1) + "," + String(m.module_temp_2));
-    publish(topic + "/chip_temp", m.chip_temp);
-    publish(mac_topic + "/battery_type", battery_type_description());
-    publish(mac_topic + "/auto_detect_battery_type", auto_detect_battery_type);
+    mqtt.publish(topic + "/module_voltage", m.module_voltage);
+    mqtt.publish(topic + "/module_temps", String(m.module_temp_1) + "," + String(m.module_temp_2));
+    mqtt.publish(topic + "/chip_temp", m.chip_temp);
+    mqtt.publish(mac_topic + "/battery_type", as_string(battery_type));
+    mqtt.publish(mac_topic + "/auto_detect_battery_type", auto_detect_battery_type);
 }
 
 void on_mqtt_master_uptime(String topic_string, String payload_string) {
@@ -370,40 +315,45 @@ void on_mqtt_restart(String topic_string, String payload_string) {
 }
 
 void on_mqtt_set_config(String topic_string, String payload_string) {
-    String module_number_string = payload_string.substring(0, payload_string.indexOf(","));
-    String total_voltage_measurer_string = payload_string.substring(payload_string.indexOf(",") + 1, payload_string.lastIndexOf(","));
-    String total_current_measurer_string = payload_string.substring(payload_string.lastIndexOf(",") + 1);
+    int indexOfComma = payload_string.indexOf(",");
+    String module_number_string;
+    if (indexOfComma >= 0) {
+        module_number_string = payload_string.substring(0, indexOfComma);
+    } else {
+        module_number_string = payload_string;
+    }
+
     module_topic = String("esp-module/") + module_number_string;
-    client.disconnect();
+    mqtt.disconnect();
     reconnect();
 }
 
 void on_mqtt_ota(String topic_string, String payload_string) {
-    publish(mac_topic + "/ota_start", String("ota started [") + payload_string + "] (" + millis() + ")");
-    publish(mac_topic + "/ota_url", String("https://") + ota_server + payload_string);
+    mqtt.publish(mac_topic + "/ota_start", String("ota started [") + payload_string + "] (" + millis() + ")");
+    mqtt.publish(mac_topic + "/ota_url", String("https://") + ota_server + payload_string);
     WiFiClientSecure client_secure;
     client_secure.setTrustAnchors(&cert);
     client_secure.setTimeout(60);
     ESPhttpUpdate.setLedPin(LED_BUILTIN, HIGH);
-    switch (ESPhttpUpdate.update(client_secure, String("https://") + ota_server + payload_string)) {
-        case HTTP_UPDATE_FAILED: {
-            String error_string = String("HTTP_UPDATE_FAILED Error (");
-            error_string += ESPhttpUpdate.getLastError();
-            error_string += "): ";
-            error_string += ESPhttpUpdate.getLastErrorString();
-            error_string += "\n";
-            DEBUG_PRINTLN(error_string);
-            publish(mac_topic + "/ota_ret", error_string);
-        } break;
+    auto result = ESPhttpUpdate.update(client_secure, String("https://") + ota_server + payload_string);
+    String result_string;
+    switch (result) {
+        case HTTP_UPDATE_FAILED:
+            result_string = String("HTTP_UPDATE_FAILED Error (");
+            result_string += ESPhttpUpdate.getLastError();
+            result_string += "): ";
+            result_string += ESPhttpUpdate.getLastErrorString();
+            result_string += "\n";
+            break;
         case HTTP_UPDATE_NO_UPDATES:
-            DEBUG_PRINTLN("HTTP_UPDATE_NO_UPDATES");
-            publish(mac_topic + "/ota_ret", "HTTP_UPDATE_NO_UPDATES");
+            result_string = "HTTP_UPDATE_NO_UPDATES";
             break;
         case HTTP_UPDATE_OK:
-            DEBUG_PRINTLN("HTTP_UPDATE_OK");
-            publish(mac_topic + "/ota_ret", "HTTP_UPDATE_OK");
+            result_string = "HTTP_UPDATE_OK";
             break;
     }
+    DEBUG_PRINTLN(result_string);
+    mqtt.publish(mac_topic + "/ota_ret", result_string);
 }
 
 // the setup function runs once when you press reset or power the board
@@ -421,18 +371,20 @@ void on_mqtt_ota(String topic_string, String payload_string) {
 
     if (use_mqtt) {
         String mac = mac_string();
-
         hostname = String("easybms-") + mac;
         mac_topic = String("esp-module/") + mac;
         module_topic = mac_topic;
 
         connect_wifi(hostname, ssid, password);
         digitalWrite(LED_BUILTIN, true);
+
+        mqtt.set_will(module_topic + "/available", 0, true, "offline");
+        mqtt.set_id(hostname);
+        mqtt.set_user(mqtt_username);
+        mqtt.set_password(mqtt_password);
     }
 
     battery_monitor.init();
-
-    client.setCallback(pub_sub_client_callback);
 
     if (battery_type == BatteryType::mebAuto) {
         auto_detect_battery_type = true;
@@ -456,11 +408,11 @@ void update_display(const std::bitset<12>& balance_bits, const Measurements& m) 
 void loop() {
     if (use_mqtt) {
         // MQTT reconnect if needed
-        if (!client.connected()) {
+        if (!mqtt.connected()) {
             reconnect();
         }
         last_connection = millis();
-        client.loop();
+        mqtt.loop();
     }
 
     if (millis() - last_ltc_check > LTC_CHECK_INTERVAL) {
