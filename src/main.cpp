@@ -2,10 +2,10 @@
 
 #include <map>
 
+#include "battery_information.hpp"
 #include "battery_monitor.hpp"
 #include "config.h"
 #include "display.hpp"
-#include "measurements.hpp"
 #include "mqtt_client.hpp"
 #include "single_mode_balancer.hpp"
 #include "soc.hpp"
@@ -47,9 +47,6 @@ BatteryMonitor battery_monitor(DEBUG);
 SingleModeBalancer single_balancer(60 * 1000, 10 * 1000);
 MqttClient mqtt(mqtt_server, mqtt_port);
 Display display;
-
-// Store cell diff history with 1h retention and 1 min granularity
-auto cell_diff_history = TimedHistory<float>(1000 * 60 * 60, 1000 * 60);
 
 bool led_builtin_state = false;
 
@@ -171,72 +168,7 @@ std::bitset<12> slave_balance_bits() {
     return balance_bits;
 }
 
-Measurements get_measurements() {
-    std::array<float, 12> cell_voltages = battery_monitor.cell_voltages();
-
-    if (auto_detect_battery_type) {
-        battery_type = detect_battery_type(cell_voltages);
-    }
-
-    float sum = 0.0f;
-    float voltage_min = cell_voltages[0];
-    float voltage_max = cell_voltages[0];
-    for (size_t i = 0; i < cell_voltages.size(); i++) {
-        if (battery_type == BatteryType::meb8s && i >= 4 && i < 8) {
-            continue;
-        }
-
-        sum += cell_voltages[i];
-        if (cell_voltages[i] < voltage_min) {
-            voltage_min = cell_voltages[i];
-        }
-        if (cell_voltages[i] > voltage_max) {
-            voltage_max = cell_voltages[i];
-        }
-    }
-    float voltage_avg = 0;
-    if (battery_type == BatteryType::meb8s) {
-        voltage_avg = sum / 8.0f;
-    } else {
-        voltage_avg = sum / 12.0f;
-    }
-
-    Measurements m;
-    for (size_t i = 0; i < cell_voltages.size(); i++) {
-        m.cell_diffs_to_avg[i] = cell_voltages[i] - voltage_avg;
-    }
-    m.cell_voltages = cell_voltages;
-    m.module_voltage = battery_monitor.module_voltage();
-    m.module_temp_1 = battery_monitor.module_temp_1();
-    m.module_temp_2 = battery_monitor.module_temp_2();
-    m.chip_temp = battery_monitor.chip_temp();
-    m.avg_cell_voltage = voltage_avg;
-    m.min_cell_voltage = voltage_min;
-    m.max_cell_voltage = voltage_max;
-    m.cell_diff = voltage_max - voltage_min;
-    m.soc = voltage_to_soc(voltage_avg);
-    m.cell_diff_trend = 0.0f;
-
-    // Calculate cell diff trend
-    cell_diff_history.insert(m.cell_diff);
-    long current_time = millis();
-    auto result = cell_diff_history.avg_element();
-    if (result.has_value()) {
-        float history_cell_diff = result.value().value;
-        float history_timestamp = result.value().timestamp;
-
-        if (current_time > history_timestamp) {
-            // Cell diff change per hour in the last hour
-            float change = m.cell_diff - history_cell_diff;
-            float time_hours = (float)(current_time - history_timestamp) / (float)(1000 * 60 * 60);
-            m.cell_diff_trend = change / time_hours;
-        }
-    }
-
-    return m;
-}
-
-void publish_mqtt_values(const std::bitset<12>& balance_bits, const String& topic, const Measurements& m) {
+void publish_mqtt_values(const std::bitset<12>& balance_bits, const String& topic, const BatteryInformation& m) {
     mqtt.publish(module_topic + "/uptime", millis());
     mqtt.publish(module_topic + "/pec15_error_count", battery_monitor.error_count());
 
@@ -299,8 +231,8 @@ void on_mqtt_read_accurate(String topic_string, String payload_string) {
             delay(100);
         }
         reconnect();
-        Measurements m = get_measurements();
-        publish_mqtt_values(balance_bits, module_topic + "/accurate", m);
+        BatteryInformation bat_info = battery_monitor.info();
+        publish_mqtt_values(balance_bits, module_topic + "/accurate", bat_info);
     }
 }
 
@@ -394,7 +326,7 @@ void on_mqtt_ota(String topic_string, String payload_string) {
     }
 }
 
-void update_display(const std::bitset<12>& balance_bits, const Measurements& m) {
+void update_display(const std::bitset<12>& balance_bits, const BatteryInformation& m) {
     DisplayData data;
 
     data.measurements = m;
@@ -417,13 +349,13 @@ void loop() {
 
     if (millis() - last_ltc_check > LTC_CHECK_INTERVAL) {
         last_ltc_check = millis();
-        Measurements measurements = get_measurements();
+        BatteryInformation bat_info = battery_monitor.info();
 
         std::bitset<12> balance_bits{};
         if (bms_mode == BmsMode::slave) {
             balance_bits = slave_balance_bits();
         } else if (bms_mode == BmsMode::single) {
-            single_balancer.update_cell_voltages(measurements.cell_voltages);
+            single_balancer.update_cell_voltages(bat_info.cell_voltages);
             single_balancer.balance();
             balance_bits = single_balancer.balance_bits();
         } else {
@@ -432,10 +364,10 @@ void loop() {
         battery_monitor.set_balance_bits(balance_bits);
 
         if (use_mqtt) {
-            publish_mqtt_values(balance_bits, module_topic, measurements);
+            publish_mqtt_values(balance_bits, module_topic, bat_info);
         }
 
-        update_display(balance_bits, measurements);
+        update_display(balance_bits, bat_info);
     }
     if (millis() - last_blink_time < BLINK_TIME) {
         if ((millis() - last_blink_time) % 100 < 50) {

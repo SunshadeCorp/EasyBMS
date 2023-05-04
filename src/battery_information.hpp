@@ -3,7 +3,7 @@
 #include <array>
 #include <bitset>
 
-struct Measurements {
+struct BatteryInformation {
     std::array<float, 12> cell_voltages;
     std::array<float, 12> cell_diffs_to_avg;
     float cell_diff;

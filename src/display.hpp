@@ -4,7 +4,7 @@
 
 #include <array>
 
-#include "measurements.hpp"
+#include "battery_information.hpp"
 
 /*
 #define TFT_CS     D0
@@ -15,7 +15,7 @@
 */
 
 struct DisplayData {
-    Measurements measurements;
+    BatteryInformation measurements;
     std::bitset<12> balance_bits;
     long uptime_seconds;
 };

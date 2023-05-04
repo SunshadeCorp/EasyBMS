@@ -2,6 +2,8 @@
 
 #include <LTC6804.cpp>  // used for template functions
 
+#include "soc.hpp"
+
 // #define DEBUG
 
 BatteryMonitor::BatteryMonitor(bool debug_mode) : _ltc(LTC68041(D8)) {
@@ -101,4 +103,69 @@ bool BatteryMonitor::measure_error() {
 
 bool BatteryMonitor::balance_error() {
     return _balance_error;
+}
+
+BatteryInformation BatteryMonitor::info() {
+    std::array<float, 12> voltages = cell_voltages();
+
+    if (auto_detect_battery_type) {
+        battery_type = detect_battery_type(cell_voltages);
+    }
+
+    float sum = 0.0f;
+    float voltage_min = voltages[0];
+    float voltage_max = voltages[0];
+    for (size_t i = 0; i < voltages.size(); i++) {
+        if (battery_type == BatteryType::meb8s && i >= 4 && i < 8) {
+            continue;
+        }
+
+        sum += voltages[i];
+        if (voltages[i] < voltage_min) {
+            voltage_min = voltages[i];
+        }
+        if (voltages[i] > voltage_max) {
+            voltage_max = voltages[i];
+        }
+    }
+    float voltage_avg = 0;
+    if (battery_type == BatteryType::meb8s) {
+        voltage_avg = sum / 8.0f;
+    } else {
+        voltage_avg = sum / 12.0f;
+    }
+
+    BatteryInformation m;
+    for (size_t i = 0; i < voltages.size(); i++) {
+        m.cell_diffs_to_avg[i] = voltages[i] - voltage_avg;
+    }
+    m.cell_voltages = voltages;
+    m.module_voltage = module_voltage();
+    m.module_temp_1 = module_temp_1();
+    m.module_temp_2 = module_temp_2();
+    m.chip_temp = chip_temp();
+    m.avg_cell_voltage = voltage_avg;
+    m.min_cell_voltage = voltage_min;
+    m.max_cell_voltage = voltage_max;
+    m.cell_diff = voltage_max - voltage_min;
+    m.soc = voltage_to_soc(voltage_avg);
+    m.cell_diff_trend = 0.0f;
+
+    // Calculate cell diff trend
+    _cell_diff_history.insert(m.cell_diff);
+    long current_time = millis();
+    auto result = _cell_diff_history.avg_element();
+    if (result.has_value()) {
+        float history_cell_diff = result.value().value;
+        float history_timestamp = result.value().timestamp;
+
+        if (current_time > history_timestamp) {
+            // Cell diff change per hour in the last hour
+            float change = m.cell_diff - history_cell_diff;
+            float time_hours = (float)(current_time - history_timestamp) / (float)(1000 * 60 * 60);
+            m.cell_diff_trend = change / time_hours;
+        }
+    }
+
+    return m;
 }
