@@ -73,31 +73,39 @@ void Display::flip() {
     clear();
 }
 
-void Display::draw(const DisplayData& data) {
+void Display::update(std::shared_ptr<BatteryMonitor> m) {
     // Print Cell Voltages
-    for (int i = 0; i < 12; i++) {
-        String cell_voltage = format_cell_voltage(data.measurements.cell_voltages[i]);
+    auto& cell_voltages = m->cell_voltages();
+    for (size_t i = 0; i < cell_voltages.size(); i++) {
+        String cell_voltage = format_cell_voltage(cell_voltages[i]);
         print(0, i, cell_voltage);
     }
 
     // Print Balance Bits
-    for (int i = 0; i < 12; i++) {
-        if (data.balance_bits[i]) {
+    auto& balance_bits = m->balance_bits();
+    for (size_t i = 0; i < balance_bits.size(); i++) {
+        if (balance_bits[i]) {
             print(5, i, "-");
         }
     }
 
     // Print Stats
-    String cell_diff = format_cell_voltage(data.measurements.cell_diff);
-    String cell_diff_trend = format(data.measurements.cell_diff_trend, 0, -99, 99, "mVh");
-    String soc = format(data.measurements.soc, 1, -99.9, 999.9);
-    String module_voltage = format(data.measurements.module_voltage, 1, 0, 99.9, "V");
-    String min_cell_voltage = format_cell_voltage(data.measurements.min_cell_voltage);
-    String avg_cell_voltage = format_cell_voltage(data.measurements.avg_cell_voltage);
-    String max_cell_voltage = format_cell_voltage(data.measurements.max_cell_voltage);
-    String module_temp_1 = format_temp(data.measurements.module_temp_1);
-    String module_temp_2 = format_temp(data.measurements.module_temp_2);
-    String chip_temp = format_temp(data.measurements.chip_temp);
+    String cell_diff = format_cell_voltage(m->cell_diff());
+    String soc = format(m->soc(), 1, -99.9, 999.9);
+    String module_voltage = format(m->module_voltage(), 1, 0, 99.9, "V");
+    String min_cell_voltage = format_cell_voltage(m->min_voltage());
+    String avg_cell_voltage = format_cell_voltage(m->avg_voltage());
+    String max_cell_voltage = format_cell_voltage(m->max_voltage());
+    String module_temp_1 = format_temp(m->module_temp_1());
+    String module_temp_2 = format_temp(m->module_temp_2());
+    String chip_temp = format_temp(m->chip_temp());
+
+    String cell_diff_trend;
+    if (m->cell_diff_trend().has_value()) {
+        cell_diff_trend = format(m->cell_diff_trend().value(), 0, -99, 99, "mVh");
+    } else {
+        cell_diff_trend = "-";
+    }
 
     print(7, 0, "Dif:" + cell_diff);
     print(7, 1, "Tre:" + cell_diff_trend);

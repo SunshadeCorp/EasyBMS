@@ -4,7 +4,7 @@
 
 #include <array>
 
-#include "battery_information.hpp"
+#include "battery_monitor.hpp"
 
 /*
 #define TFT_CS     D0
@@ -14,12 +14,6 @@
 #define TFT_MOSI D7
 */
 
-struct DisplayData {
-    BatteryInformation measurements;
-    std::bitset<12> balance_bits;
-    long uptime_seconds;
-};
-
 class Display {
    public:
     Display();
@@ -28,7 +22,7 @@ class Display {
     void init();
 
     // Main function to print all BMS data
-    void draw(const DisplayData& data);
+    void update(std::shared_ptr<BatteryMonitor> monitor);
 
    private:
     const uint8_t _char_height = 10;

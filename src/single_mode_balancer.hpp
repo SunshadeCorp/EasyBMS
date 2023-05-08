@@ -1,14 +1,16 @@
 #pragma once
 
-#include <bitset>
-#include <array>
-#include <cmath>
-#include "battery_type.hpp"
-
 #include <Arduino.h>
 
-class SingleModeBalancer {
-private:
+#include <array>
+#include <balancer.hpp>
+#include <bitset>
+#include <cmath>
+
+#include "battery_type.hpp"
+
+class SingleModeBalancer : IBalancer {
+   private:
     enum class BalancerState {
         Idle,
         Balancing,
@@ -25,37 +27,37 @@ private:
 
     BalancerState _balancer_state;
     bool _voltages_initialized;
-    std::array<float, 12> _voltages;
-    std::bitset<12> _balance_bits;
+    std::vector<float> _voltages;
+    std::vector<bool> _balance_bits;
 
-    void balance_algorithm() {
+    void reset_balance_bits() {
+        for (size_t i = 0; i < _balance_bits.size(); i++) {
+            _balance_bits[i] = false;
+        }
+    }
+
+    void select_cells_to_balance() {
         float target = min_voltage();
 
         if (target <= _cut_off_voltage) {
             // Don't balance
-            _balance_bits.reset();
+            reset_balance_bits();
         } else {
             // Balance all the cells above target_voltage
-            for(int i = 0; i < 12; i++) {
+            for (size_t i = 0; i < _voltages.size(); i++) {
                 if (_voltages[i] > target + 0.003) {
-                    _balance_bits.set(i);
-                }
-                else {
-                    _balance_bits.reset(i);
+                    _balance_bits[i] = true;
+                } else {
+                    _balance_bits[i] = false;
                 }
             }
         }
     }
 
-    float min_voltage() {
+    float min_voltage() const {
         float min = _voltages[0];
-        BatteryType bat_type = detect_battery_type(_voltages);
 
-        for (int i = 0; i < 12; i++) {
-            if (bat_type == BatteryType::meb8s && i >= 4 && i < 8) {
-                continue;
-            }
-
+        for (size_t i = 0; i < _voltages.size(); i++) {
             if (_voltages[i] < min) {
                 min = _voltages[i];
             }
@@ -64,7 +66,7 @@ private:
         return min;
     }
 
-public:
+   public:
     SingleModeBalancer(long balance_time_ms, long relax_time_ms) {
         _balance_time_ms = balance_time_ms;
         _relax_time_ms = relax_time_ms;
@@ -73,21 +75,20 @@ public:
         _cut_off_voltage = 3.5;
         _balancer_state = BalancerState::Idle;
         _voltages_initialized = false;
-        _voltages.fill(0);
-        _balance_bits.reset();
     }
 
-    void update_cell_voltages(const std::array<float, 12>& voltages) {
+    void update_cell_voltages(const std::vector<float>& voltages) {
         _voltages = voltages;
         _voltages_initialized = true;
+        _balance_bits.resize(_voltages.size());
     }
 
     void balance() {
-        long time = millis();
-
         if (!_voltages_initialized) {
             return;
         }
+
+        long time = millis();
 
         if (_balancer_state == BalancerState::Relaxing) {
             if (time > _relax_start_timestamp + _relax_time_ms) {
@@ -97,21 +98,20 @@ public:
 
         if (_balancer_state == BalancerState::Balancing) {
             if (time > _balance_start_timestamp + _balance_time_ms) {
-                _balance_bits.reset();
+                reset_balance_bits();
                 _relax_start_timestamp = time;
                 _balancer_state = BalancerState::Relaxing;
             }
         }
 
         if (_balancer_state == BalancerState::Idle) {
-            balance_algorithm();
+            select_cells_to_balance();
             _balance_start_timestamp = time;
             _balancer_state = BalancerState::Balancing;
         }
     }
 
-    std::bitset<12> balance_bits() {
+    std::vector<bool> balance_bits() const {
         return _balance_bits;
     }
-
 };

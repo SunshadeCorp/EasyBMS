@@ -7,6 +7,8 @@
 #include <functional>
 #include <map>
 
+#define SSL_ENABLED false
+
 using MqttCallback = std::function<void(const String&, const String&)>;
 
 class MqttClient {

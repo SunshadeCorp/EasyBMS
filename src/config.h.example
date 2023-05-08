@@ -4,16 +4,16 @@
 #include "battery_type.hpp"
 #include "bms_mode.hpp"
 
-BatteryType battery_type = BatteryType::mebAuto;
+BatteryConfig battery_type = BatteryConfig::mebAuto;
 BmsMode bms_mode = BmsMode::single;
 
-constexpr char ssid[] = "WIFI_SSID";
-constexpr char password[] = "WIFI_PASS";
-constexpr char mqtt_server[] = "mosquitto.local";
-constexpr uint16_t mqtt_port = 1883;
-constexpr char mqtt_username[] = "mosquitto_user";
-constexpr char mqtt_password[] = "mosquitto_pass";
-constexpr bool use_mqtt = false;
+const char ssid[] = "WIFI_SSID";
+const char password[] = "WIFI_PASS";
+const char mqtt_server[] = "mosquitto.local";
+const uint16_t mqtt_port = 1883;
+const char mqtt_username[] = "mosquitto_user";
+const char mqtt_password[] = "mosquitto_pass";
+const bool use_mqtt = false;
 
 constexpr char ota_server[] = "example.com/ota/";
 const char trustRoot[] PROGMEM = R"CERT(
@@ -49,4 +49,4 @@ mRGunUHBcnWEvgJBQl9nJEiU0Zsnvgc/ubhPgXRR4Xq37Z0j4r7g1SgEEzwxA57d
 emyPxgcYxn/eR44/KJ4EBs+lVDR3veyJm+kXQ99b21/+jh5Xos1AnX5iItreGCc=
 -----END CERTIFICATE-----
 )CERT"; // ISRG Root X1 from https://letsencrypt.org/de/certificates/
-inline X509List cert(trustRoot);
+X509List cert(trustRoot);

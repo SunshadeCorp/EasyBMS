@@ -1,171 +1,170 @@
 #include "battery_monitor.hpp"
 
-#include <LTC6804.cpp>  // used for template functions
+#include <algorithm>
+#include <numeric>
 
+#include "battery_type.hpp"
 #include "soc.hpp"
 
-// #define DEBUG
+#define SECONDS 1000
+#define MINUTES (60 * SECONDS)
+#define HOURS (60 * MINUTES)
 
-BatteryMonitor::BatteryMonitor(bool debug_mode) : _ltc(LTC68041(D8)) {
-    _pec15_error_count = 0;
-    _debug_mode = debug_mode;
-    _measure_error = false;
-    _balance_error = false;
+BatteryMonitor::BatteryMonitor() {
+    _cell_diff_trend = {};
+    _meb.init();
 }
 
-void BatteryMonitor::init() {
-    _ltc.initSPI(D7, D6, D5);
+void BatteryMonitor::set_battery_config(BatteryConfig config) {
+    _battery_config = config;
 }
 
-float BatteryMonitor::raw_voltage_to_real_module_temp(float raw_voltage) {
-    return 32.0513f * raw_voltage - 23.0769f;
+BatteryType BatteryMonitor::battery_type() const {
+    return _battery_type;
 }
 
-void BatteryMonitor::set_balance_bits(const std::bitset<12> &balance_bits) {
-    _balance_error = false;
+BatteryConfig BatteryMonitor::battery_config() const {
+    return _battery_config;
+}
 
-    if (_ltc.checkSPI(_debug_mode)) {
-        digitalWrite(D1, HIGH);
+void BatteryMonitor::set_balance_bits(const std::vector<bool>& balance_bits) {
+    std::bitset<12> bits;
+
+    if (_battery_type == BatteryType::meb8s) {
+        bits[0] = balance_bits[0];
+        bits[1] = balance_bits[1];
+        bits[2] = balance_bits[2];
+        bits[3] = balance_bits[3];
+
+        bits[4] = false;
+        bits[5] = false;
+        bits[6] = false;
+        bits[7] = false;
+
+        bits[8] = balance_bits[4];
+        bits[9] = balance_bits[5];
+        bits[10] = balance_bits[6];
+        bits[11] = balance_bits[7];
     } else {
-        digitalWrite(D1, LOW);
-    }
-
-    _ltc.cfgSetRefOn(true);
-    _ltc.cfgSetVUV(3.1);
-    _ltc.cfgSetVOV(4.2);
-
-    if (balance_bits.any()) {
-        digitalWrite(D2, HIGH);
-    } else {
-        digitalWrite(D2, LOW);
-    }
-
-    _ltc.cfgSetDCC(balance_bits);
-    _ltc.cfgWrite();
-
-    // Start different Analog-Digital-Conversions in the Chip
-    _ltc.startCellConv(LTC68041::DCP_DISABLED);
-    delay(5);  // Wait until conversion is finished
-    _ltc.startAuxConv();
-    delay(5);  // Wait until conversion is finished
-    _ltc.startStatusConv();
-    delay(5);  // Wait until conversion is finished
-    if (!_ltc.cfgRead()) {
-        _pec15_error_count++;
-        _balance_error = true;
-    }
-
-    // Print the clear text values cellVoltage, gpioVoltage, Undervoltage Bits, Overvoltage Bits
-    if (_debug_mode) {
-        _ltc.readCfgDbg();
-        _ltc.readStatusDbg();
-        _ltc.readAuxDbg();
-        _ltc.readCellsDbg();
-    }
-}
-
-float BatteryMonitor::module_temp_1() {
-    return raw_voltage_to_real_module_temp(_ltc.getAuxVoltage(LTC68041::AuxChannel::CHG_GPIO1));
-}
-
-float BatteryMonitor::module_temp_2() {
-    return raw_voltage_to_real_module_temp(_ltc.getAuxVoltage(LTC68041::AuxChannel::CHG_GPIO2));
-}
-
-float BatteryMonitor::module_voltage() {
-    return _ltc.getStatusVoltage(LTC68041::CHST_SOC);
-}
-
-float BatteryMonitor::chip_temp() {
-    return _ltc.getStatusVoltage(_ltc.StatusGroup::CHST_ITMP);
-}
-
-std::array<float, 12> BatteryMonitor::cell_voltages() {
-    std::array<float, 12> voltages;
-    bool success = _ltc.getCellVoltages<12>(voltages);
-    if (success) {
-        _measure_error = false;
-    } else {
-        _pec15_error_count++;
-        _measure_error = true;
-    }
-
-    return voltages;
-}
-
-unsigned long BatteryMonitor::error_count() {
-    return _pec15_error_count;
-}
-
-bool BatteryMonitor::measure_error() {
-    return _measure_error;
-}
-
-bool BatteryMonitor::balance_error() {
-    return _balance_error;
-}
-
-BatteryInformation BatteryMonitor::info() {
-    std::array<float, 12> voltages = cell_voltages();
-
-    if (auto_detect_battery_type) {
-        battery_type = detect_battery_type(cell_voltages);
-    }
-
-    float sum = 0.0f;
-    float voltage_min = voltages[0];
-    float voltage_max = voltages[0];
-    for (size_t i = 0; i < voltages.size(); i++) {
-        if (battery_type == BatteryType::meb8s && i >= 4 && i < 8) {
-            continue;
-        }
-
-        sum += voltages[i];
-        if (voltages[i] < voltage_min) {
-            voltage_min = voltages[i];
-        }
-        if (voltages[i] > voltage_max) {
-            voltage_max = voltages[i];
+        for (size_t i = 0; i < bits.size(); i++) {
+            bits[i] = balance_bits[i];
         }
     }
-    float voltage_avg = 0;
-    if (battery_type == BatteryType::meb8s) {
-        voltage_avg = sum / 8.0f;
+
+    _meb.set_balance_bits(bits);
+}
+
+void BatteryMonitor::detect_battery(const std::array<float, 12>& voltages) {
+    if (_battery_config == BatteryConfig::meb12s) {
+        _battery_type = BatteryType::meb12s;
+    } else if (_battery_config == BatteryConfig::meb8s) {
+        _battery_type = BatteryType::meb8s;
     } else {
-        voltage_avg = sum / 12.0f;
+        detect_battery_type(voltages);
+    }
+}
+
+void BatteryMonitor::measure() {
+    auto ltc_voltages = _meb.cell_voltages();
+
+    detect_battery(ltc_voltages);
+
+    if (_battery_type == BatteryType::meb8s) {
+        _cell_voltages.resize(8);
+        _cell_voltages[0] = ltc_voltages[0];
+        _cell_voltages[1] = ltc_voltages[1];
+        _cell_voltages[2] = ltc_voltages[2];
+        _cell_voltages[3] = ltc_voltages[3];
+        _cell_voltages[4] = ltc_voltages[8];
+        _cell_voltages[5] = ltc_voltages[9];
+        _cell_voltages[6] = ltc_voltages[10];
+        _cell_voltages[7] = ltc_voltages[11];
+    } else {
+        _cell_voltages.resize(12);
+        for (size_t i = 0; i < 12; i++) {
+            _cell_voltages[i] = ltc_voltages[i];
+        }
     }
 
-    BatteryInformation m;
-    for (size_t i = 0; i < voltages.size(); i++) {
-        m.cell_diffs_to_avg[i] = voltages[i] - voltage_avg;
+    _min_voltage = *std::min_element(_cell_voltages.begin(), _cell_voltages.end());
+    _max_voltage = *std::max_element(_cell_voltages.begin(), _cell_voltages.end());
+    _cell_diff = _max_voltage - _min_voltage;
+    _cell_diff_history.insert(_cell_diff);
+    float voltages_sum = std::accumulate(_cell_voltages.begin(), _cell_voltages.end(), 0);
+    _avg_voltage = voltages_sum / static_cast<float>(_cell_voltages.size());
+
+    for (size_t i = 0; i < _cell_voltages.size(); i++) {
+        _cell_diffs[i] = _cell_voltages[i] - _avg_voltage;
     }
-    m.cell_voltages = voltages;
-    m.module_voltage = module_voltage();
-    m.module_temp_1 = module_temp_1();
-    m.module_temp_2 = module_temp_2();
-    m.chip_temp = chip_temp();
-    m.avg_cell_voltage = voltage_avg;
-    m.min_cell_voltage = voltage_min;
-    m.max_cell_voltage = voltage_max;
-    m.cell_diff = voltage_max - voltage_min;
-    m.soc = voltage_to_soc(voltage_avg);
-    m.cell_diff_trend = 0.0f;
 
-    // Calculate cell diff trend
-    _cell_diff_history.insert(m.cell_diff);
-    long current_time = millis();
-    auto result = _cell_diff_history.avg_element();
-    if (result.has_value()) {
-        float history_cell_diff = result.value().value;
-        float history_timestamp = result.value().timestamp;
+    _module_voltage = _meb.module_voltage();
+    _module_temp_1 = _meb.module_temp_1();
+    _module_temp_2 = _meb.module_temp_2();
+    _chip_temp = _meb.chip_temp();
+    _soc = SOC::voltage_to_soc(_module_voltage);
+    calc_cell_diff_trend();
+}
 
-        if (current_time > history_timestamp) {
+float BatteryMonitor::min_voltage() const {
+    return _min_voltage;
+}
+
+float BatteryMonitor::max_voltage() const {
+    return _max_voltage;
+}
+
+float BatteryMonitor::avg_voltage() const {
+    return _avg_voltage;
+}
+
+float BatteryMonitor::cell_diff() const {
+    return _cell_diff;
+}
+
+float BatteryMonitor::module_voltage() const {
+    return _module_voltage;
+}
+
+float BatteryMonitor::module_temp_1() const {
+    return _module_temp_1;
+}
+
+float BatteryMonitor::module_temp_2() const {
+    return _module_temp_2;
+}
+
+float BatteryMonitor::chip_temp() const {
+    return _chip_temp;
+}
+
+float BatteryMonitor::soc() const {
+    return _soc;
+}
+
+uint32_t BatteryMonitor::error_count() const {
+    // TODO
+    return _error_count;
+}
+
+std::optional<float> BatteryMonitor::cell_diff_trend() const {
+    return _cell_diff_trend;
+}
+
+void BatteryMonitor::calc_cell_diff_trend() {
+    auto result_avg = _cell_diff_history.avg_element();
+    auto result_latest = _cell_diff_history.latest_element();
+    if (result_avg.has_value() && result_latest.has_value()) {
+        float avg_cell_diff = result_avg.value().value;
+        unsigned long avg_timestamp = result_avg.value().timestamp_ms;
+        float latest_cell_diff = result_latest.value().value;
+        unsigned long latest_timestamp = result_latest.value().timestamp_ms;
+
+        if (latest_timestamp - avg_timestamp > 2 * MINUTES) {
             // Cell diff change per hour in the last hour
-            float change = m.cell_diff - history_cell_diff;
-            float time_hours = (float)(current_time - history_timestamp) / (float)(1000 * 60 * 60);
-            m.cell_diff_trend = change / time_hours;
+            float change = latest_cell_diff - avg_cell_diff;
+            unsigned long time_ms = latest_timestamp - avg_timestamp;
+            float time_h = static_cast<float>(time_ms) / static_cast<float>(1 * HOURS);
+            _cell_diff_trend = change / time_h;
         }
     }
-
-    return m;
 }

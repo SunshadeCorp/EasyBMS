@@ -1,20 +1,21 @@
-#include <deque>
+#pragma once
 
+#include <deque>
 
 template <typename T>
 class TimedHistory {
-public:
+   public:
     struct Element {
         Element(T v, unsigned long t) {
             value = v;
-            timestamp = t;
+            timestamp_ms = t;
         }
 
         T value;
-        unsigned long timestamp;
+        unsigned long timestamp_ms;
     };
 
-private:
+   private:
     std::deque<Element> _values;
     unsigned long _retention_period;
     unsigned long _granularity;
@@ -22,12 +23,12 @@ private:
     void clean() {
         unsigned long current_time = millis();
 
-        while (!_values.empty() && current_time - _values.front().timestamp > _retention_period) {
+        while (!_values.empty() && current_time - _values.front().timestamp_ms > _retention_period) {
             _values.pop_front();
         }
     }
 
-public:
+   public:
     TimedHistory(unsigned long retention_period_millis, unsigned long granularity_millis) {
         _retention_period = retention_period_millis;
         _granularity = granularity_millis;
@@ -39,9 +40,8 @@ public:
 
         if (_values.empty()) {
             _values.push_back(new_element);
-        }
-        else {
-            unsigned long last_insert_time = _values.back().timestamp;
+        } else {
+            unsigned long last_insert_time = _values.back().timestamp_ms;
 
             if (current_time - last_insert_time > _granularity) {
                 _values.push_back(new_element);
@@ -53,28 +53,34 @@ public:
 
     std::optional<Element> oldest_element() {
         clean();
-
-        if(_values.empty()) {
+        if (_values.empty()) {
             return {};
-        }
-        else {
+        } else {
             return _values.front();
+        }
+    }
+
+    std::optional<Element> latest_element() {
+        clean();
+        if (_values.empty()) {
+            return {};
+        } else {
+            return _values.back();
         }
     }
 
     std::optional<Element> avg_element() {
         clean();
 
-        if(_values.empty()) {
+        if (_values.empty()) {
             return {};
-        }
-        else {
+        } else {
             T sum_value = 0;
             unsigned long sum_timestamp = 0;
 
             for (auto& element : _values) {
                 sum_value += element.value;
-                sum_timestamp += element.timestamp;
+                sum_timestamp += element.timestamp_ms;
             }
 
             T avg_value = sum_value / _values.size();
