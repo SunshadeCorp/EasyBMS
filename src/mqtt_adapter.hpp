@@ -1,17 +1,13 @@
 #pragma once
 
-#include <Esp.h>
-#include <WCharacter.h>
+#include <BearSSLHelpers.h>
 #include <WString.h>
 
 #include <algorithm>
 #include <bitset>
 
 #include "bms.hpp"
-#include "debug.hpp"
 #include "mqtt_client.hpp"
-#include "version.h"
-#include "wifi.hpp"
 
 class BMS;
 

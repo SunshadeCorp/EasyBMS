@@ -1,6 +1,3 @@
-#include <ESP8266httpUpdate.h>
-#include <Esp.h>
-#include <WCharacter.h>
 #include <WString.h>
 
 #include <algorithm>

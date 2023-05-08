@@ -1,13 +1,7 @@
 #pragma once
 
-#include <Arduino.h>
-
-#include <array>
 #include <balancer.hpp>
-#include <bitset>
-#include <cmath>
-
-#include "battery_type.hpp"
+#include <vector>
 
 class SingleModeBalancer : IBalancer {
    private:

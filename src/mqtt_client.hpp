@@ -2,9 +2,8 @@
 
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
-#include <wstring.h>
+#include <WString.h>
 
-#include <functional>
 #include <map>
 
 #define SSL_ENABLED false
