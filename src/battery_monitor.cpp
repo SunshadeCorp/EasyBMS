@@ -19,6 +19,14 @@ void BatteryMonitor::set_battery_config(BatteryConfig config) {
     _battery_config = config;
 }
 
+const std::vector<float>& BatteryMonitor::cell_voltages() const {
+    return _cell_voltages;
+}
+
+const std::vector<bool>& BatteryMonitor::balance_bits() const {
+    return _balance_bits;
+}
+
 BatteryType BatteryMonitor::battery_type() const {
     return _battery_type;
 }
@@ -28,8 +36,9 @@ BatteryConfig BatteryMonitor::battery_config() const {
 }
 
 void BatteryMonitor::set_balance_bits(const std::vector<bool>& balance_bits) {
-    std::bitset<12> bits;
+    _balance_bits = balance_bits;
 
+    std::bitset<12> bits;
     if (_battery_type == BatteryType::meb8s) {
         bits[0] = balance_bits[0];
         bits[1] = balance_bits[1];

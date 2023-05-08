@@ -8,7 +8,6 @@
 #include "mqtt_adapter.hpp"
 #include "mqtt_client.hpp"
 #include "single_mode_balancer.hpp"
-#include "soc.hpp"
 #include "timed_history.hpp"
 #include "wifi.hpp"
 

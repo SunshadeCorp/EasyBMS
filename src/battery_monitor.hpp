@@ -41,6 +41,7 @@ class BatteryMonitor {
     TimedHistory<float> _cell_diff_history = TimedHistory<float>(1000 * 60 * 60, 1000 * 60);
     std::vector<float> _cell_voltages;
     std::vector<float> _cell_diffs;
+    std::vector<bool> _balance_bits;
     float _min_voltage;
     float _max_voltage;
     float _avg_voltage;
