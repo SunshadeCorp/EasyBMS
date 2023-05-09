@@ -9,6 +9,8 @@
 
 class MqttAdapter;
 
+using time_ms = unsigned long;
+
 class BMS {
    public:
     void blink();
@@ -17,12 +19,16 @@ class BMS {
     void restart();
     void set_module_number(uint8_t module_number);
     void set_mode(BmsMode mode);
+    void set_balancer(std::shared_ptr<SingleModeBalancer> balancer);
+    void set_display(std::shared_ptr<Display> display);
+    void set_mqtt_adapter(std::shared_ptr<MqttAdapter> mqtt_adapter);
+    void set_battery_monitor(std::shared_ptr<BatteryMonitor> battery_monitor);
     BmsMode mode() const;
     std::shared_ptr<const BatteryMonitor> battery_monitor();
     void loop();
 
    private:
-    unsigned long _last_blink_time = 0;
+    time_ms _last_blink_time = 0;
     uint8_t _module_number;
     BmsMode _mode;
     std::shared_ptr<SingleModeBalancer> _balancer;
@@ -30,7 +36,7 @@ class BMS {
     std::shared_ptr<BatteryMonitor> _battery_monitor;
     std::shared_ptr<Display> _display;
     bool _led_builtin_state = false;
-    unsigned long _last_ltc_check = 0;
-    const unsigned long BLINK_TIME = 5000;
-    const unsigned long LTC_CHECK_INTERVAL = 1000;
+    time_ms _last_ltc_check = 0;
+    const time_ms BLINK_TIME = 5000;
+    const time_ms LTC_CHECK_INTERVAL = 1000;
 };

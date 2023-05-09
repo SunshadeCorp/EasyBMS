@@ -75,7 +75,6 @@ void BatteryMonitor::detect_battery(const std::array<float, 12>& voltages) {
 
 void BatteryMonitor::measure() {
     auto ltc_voltages = _meb.cell_voltages();
-
     detect_battery(ltc_voltages);
 
     if (_battery_type == BatteryType::meb8s) {
@@ -102,10 +101,10 @@ void BatteryMonitor::measure() {
     float voltages_sum = std::accumulate(_cell_voltages.begin(), _cell_voltages.end(), 0);
     _avg_voltage = voltages_sum / static_cast<float>(_cell_voltages.size());
 
+    _cell_diffs.resize(_cell_voltages.size());
     for (size_t i = 0; i < _cell_voltages.size(); i++) {
         _cell_diffs[i] = _cell_voltages[i] - _avg_voltage;
     }
-
     _module_voltage = _meb.module_voltage();
     _module_temp_1 = _meb.module_temp_1();
     _module_temp_2 = _meb.module_temp_2();
@@ -161,7 +160,7 @@ std::optional<float> BatteryMonitor::cell_diff_trend() const {
 
 void BatteryMonitor::calc_cell_diff_trend() {
     auto result_avg = _cell_diff_history.avg_element();
-    auto result_latest = _cell_diff_history.latest_element();
+    auto result_latest = _cell_diff_history.newest_element();
     if (result_avg.has_value() && result_latest.has_value()) {
         float avg_cell_diff = result_avg.value().value;
         unsigned long avg_timestamp = result_avg.value().timestamp_ms;

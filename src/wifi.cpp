@@ -18,7 +18,7 @@ void connect_wifi(String hostname, String ssid, String password) {
     WiFi.begin(ssid, password);
     while (WiFi.status() != WL_CONNECTED) {
         delay(100);
-        Serial.println(".");
+        Serial.print(".");
     }
     Serial.println("");
     Serial.println("WiFi connected");

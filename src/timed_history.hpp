@@ -2,26 +2,28 @@
 
 #include <deque>
 
+using time_ms = unsigned long;
+
 template <typename T>
 class TimedHistory {
    public:
     struct Element {
-        Element(T v, unsigned long t) {
+        Element(T v, time_ms t) {
             value = v;
             timestamp_ms = t;
         }
 
         T value;
-        unsigned long timestamp_ms;
+        time_ms timestamp_ms;
     };
 
    private:
     std::deque<Element> _values;
-    unsigned long _retention_period;
-    unsigned long _granularity;
+    time_ms _retention_period;
+    time_ms _granularity;
 
     void clean() {
-        unsigned long current_time = millis();
+        time_ms current_time = millis();
 
         while (!_values.empty() && current_time - _values.front().timestamp_ms > _retention_period) {
             _values.pop_front();
@@ -29,19 +31,19 @@ class TimedHistory {
     }
 
    public:
-    TimedHistory(unsigned long retention_period_millis, unsigned long granularity_millis) {
-        _retention_period = retention_period_millis;
-        _granularity = granularity_millis;
+    TimedHistory(time_ms retention_period_ms, time_ms granularity_ms) {
+        _retention_period = retention_period_ms;
+        _granularity = granularity_ms;
     }
 
     void insert(T value) {
-        unsigned long current_time = millis();
+        time_ms current_time = millis();
         Element new_element(value, current_time);
 
         if (_values.empty()) {
             _values.push_back(new_element);
         } else {
-            unsigned long last_insert_time = _values.back().timestamp_ms;
+            time_ms last_insert_time = _values.back().timestamp_ms;
 
             if (current_time - last_insert_time > _granularity) {
                 _values.push_back(new_element);
@@ -60,7 +62,7 @@ class TimedHistory {
         }
     }
 
-    std::optional<Element> latest_element() {
+    std::optional<Element> newest_element() {
         clean();
         if (_values.empty()) {
             return {};
@@ -76,7 +78,7 @@ class TimedHistory {
             return {};
         } else {
             T sum_value = 0;
-            unsigned long sum_timestamp = 0;
+            time_ms sum_timestamp = 0;
 
             for (auto& element : _values) {
                 sum_value += element.value;
@@ -84,7 +86,7 @@ class TimedHistory {
             }
 
             T avg_value = sum_value / _values.size();
-            unsigned long avg_timestamp = sum_timestamp / _values.size();
+            time_ms avg_timestamp = sum_timestamp / _values.size();
 
             return Element(avg_value, avg_timestamp);
         }

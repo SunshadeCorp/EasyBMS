@@ -1,5 +1,3 @@
-#include <map>
-
 #include "balancer.hpp"
 #include "battery_monitor.hpp"
 #include "config.h"
@@ -27,18 +25,23 @@ std::shared_ptr<MqttAdapter> mqtt_adapter;
     DEBUG_PRINTLN("init");
 
     battery_monitor = std::make_shared<BatteryMonitor>();
+    battery_monitor->set_battery_config(battery_config);
     balancer = std::make_shared<SingleModeBalancer>(60 * 1000, 10 * 1000);
     display = std::make_shared<Display>();
     bms = std::make_shared<BMS>();
+    bms->set_balancer(balancer);
+    bms->set_mode(bms_mode);
+    bms->set_display(display);
+    bms->set_battery_monitor(battery_monitor);
 
     display->init();
-    bms->set_mode(bms_mode);
 
     auto hostname = String("easybms-") + mac_string();
     connect_wifi(hostname, ssid, password);
     digitalWrite(LED_BUILTIN, true);
 
     if (use_mqtt) {
+        DEBUG_PRINTLN("Setup MQTT");
         auto mqtt = std::make_shared<MqttClient>(mqtt_server, mqtt_port);
         mqtt->set_user(mqtt_username);
         mqtt->set_password(mqtt_password);
@@ -47,14 +50,12 @@ std::shared_ptr<MqttAdapter> mqtt_adapter;
         mqtt_adapter->set_ota_server(ota_server);
         mqtt_adapter->set_ota_cert(&cert);
         mqtt_adapter->init();
+        bms->set_mqtt_adapter(mqtt_adapter);
     }
-
-    battery_monitor->set_battery_config(battery_config);
 }
 
-// the loop function runs over and over again forever
 void loop() {
-    if (use_mqtt) {
+    if (mqtt_adapter != nullptr) {
         mqtt_adapter->loop();
     }
 
