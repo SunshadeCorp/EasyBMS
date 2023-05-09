@@ -40,30 +40,10 @@ void MqttClient::set_will(String topic, uint8_t qos, bool retain, String message
     _use_will = true;
 }
 
-template bool MqttClient::publish(String, float);
-template bool MqttClient::publish(String, double);
-template bool MqttClient::publish(String, bool);
-template bool MqttClient::publish(String, uint8_t);
-template bool MqttClient::publish(String, uint16_t);
-template bool MqttClient::publish(String, uint32_t);
-template bool MqttClient::publish(String, uint64_t);
-template bool MqttClient::publish(String, unsigned long);
-template bool MqttClient::publish(String, int8_t);
-template bool MqttClient::publish(String, int16_t);
-template bool MqttClient::publish(String, int32_t);
-template bool MqttClient::publish(String, int64_t);
-
-template <typename T>
-bool MqttClient::publish(String topic, T value) {
-    return _client.publish(topic.c_str(), String(value).c_str(), true);
-}
-
-template <>
 bool MqttClient::publish(String topic, const char* value) {
     return _client.publish(topic.c_str(), value, true);
 }
 
-template <>
 bool MqttClient::publish(String topic, String value) {
     return _client.publish(topic.c_str(), value.c_str(), true);
 }

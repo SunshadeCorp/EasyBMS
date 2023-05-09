@@ -15,7 +15,13 @@ class MqttClient {
     MqttClient(String server, uint16_t port);
 
     template <typename T>
-    bool publish(String topic, T value);
+    bool publish(String topic, T value) {
+        return publish(topic, String(value).c_str());
+    }
+
+    bool publish(String topic, const char* value);
+
+    bool publish(String topic, String value);
 
     bool subscribe(String topic, MqttCallback callback);
     void disconnect();
