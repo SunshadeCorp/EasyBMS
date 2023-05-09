@@ -69,7 +69,7 @@ void BatteryMonitor::detect_battery(const std::array<float, 12>& voltages) {
     } else if (_battery_config == BatteryConfig::meb8s) {
         _battery_type = BatteryType::meb8s;
     } else {
-        detect_battery_type(voltages);
+        _battery_type = detect_battery_type(voltages);
     }
 }
 
