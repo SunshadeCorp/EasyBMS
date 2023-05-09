@@ -4,6 +4,16 @@ void BMS::blink() {
     _last_blink_time = millis();
 }
 
+void BMS::flip_led() {
+    _led_builtin_state = !_led_builtin_state;
+    digitalWrite(LED_BUILTIN, _led_builtin_state ? LOW : HIGH);
+}
+
+void BMS::set_led(bool led_state) {
+    _led_builtin_state = led_state;
+    digitalWrite(LED_BUILTIN, _led_builtin_state ? LOW : HIGH);
+}
+
 void BMS::set_module_number(uint8_t module_number) {
     _module_number = module_number;
 }
@@ -41,7 +51,7 @@ void BMS::loop() {
         }
 
         if (_mqtt_adapter != nullptr) {
-            _mqtt_adapter->publish_mqtt_values("todo");
+            _mqtt_adapter->publish();
         }
 
         _display->update(_battery_monitor);
@@ -49,9 +59,9 @@ void BMS::loop() {
 
     if (millis() - _last_blink_time < BLINK_TIME) {
         if ((millis() - _last_blink_time) % 100 < 50) {
-            digitalWrite(LED_BUILTIN, HIGH);
+            set_led(false);
         } else {
-            digitalWrite(LED_BUILTIN, LOW);
+            set_led(true);
         }
     }
 }

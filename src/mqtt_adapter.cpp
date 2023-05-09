@@ -92,21 +92,32 @@ void MqttAdapter::loop() {
     _mqtt->loop();
 }
 
+void MqttAdapter::reset_balancing(size_t size) {
+    _balance_start_time.assign(size, false);
+    _balance_duration.assign(size, false);
+}
+
 std::vector<bool> MqttAdapter::slave_balance_bits() {
-    auto balance_bits = std::bitset<12>();
-    for (size_t i = 0; i < _cells_to_balance_start.size(); ++i) {
-        if (millis() - _cells_to_balance_start.at(i) <= _cells_to_balance_interval.at(i)) {
-            balance_bits.set(i, true);
-        } else if (_cells_to_balance_interval.at(i) > 0) {
-            _cells_to_balance_interval.at(i) = 0;
+    auto number_of_cells = _bms->battery_monitor()->cell_voltages().size();
+    auto balance_bits = std::vector<bool>(number_of_cells, false);
+
+    if (_balance_start_time.size() != number_of_cells) {
+        reset_balancing(balance_bits.size());
+        return balance_bits;
+    }
+
+    for (size_t i = 0; i < _balance_start_time.size(); ++i) {
+        if (millis() - _balance_start_time[i] <= _balance_duration[i]) {
+            balance_bits[i] = true;
+        } else if (_balance_duration[i] > 0) {
+            _balance_duration[i] = 0;
         }
     }
 
-    // TODO
-    return std::vector<bool>();
+    return balance_bits;
 }
 
-void MqttAdapter::publish_mqtt_values(const String& topic) {
+void MqttAdapter::publish() {
     auto m = _bms->battery_monitor();
     _mqtt->publish(_module_topic + "/uptime", millis());
     _mqtt->publish(_module_topic + "/pec15_error_count", m->error_count());
@@ -114,31 +125,29 @@ void MqttAdapter::publish_mqtt_values(const String& topic) {
     for (size_t i = 0; i < m->cell_voltages().size(); i++) {
         String cell_name = String(i + 1);
         if (cell_name != "undefined") {
-            _mqtt->publish(topic + "/cell/" + cell_name + "/voltage", String(m->cell_voltages()[i], 3));
+            _mqtt->publish(_module_topic + "/cell/" + cell_name + "/voltage", String(m->cell_voltages()[i], 3));
             _mqtt->publish(_module_topic + "/cell/" + cell_name + "/is_balancing", m->balance_bits()[i] ? "1" : "0");
         }
     }
 
-    _mqtt->publish(topic + "/module_voltage", m->module_voltage());
-    _mqtt->publish(topic + "/module_temps", String(m->module_temp_1()) + "," + String(m->module_temp_2()));
-    _mqtt->publish(topic + "/chip_temp", m->chip_temp());
-    _mqtt->publish(_mac_topic + "/battery_type", as_string(m->battery_type()));
-    _mqtt->publish(_mac_topic + "/battery_config", as_string(m->battery_config()));
+    _mqtt->publish(_module_topic + "/module_voltage", m->module_voltage());
+    _mqtt->publish(_module_topic + "/module_temps", String(m->module_temp_1()) + "," + String(m->module_temp_2()));
+    _mqtt->publish(_module_topic + "/chip_temp", m->chip_temp());
+    _mqtt->publish(_module_topic + "/battery_type", as_string(m->battery_type()));
+    _mqtt->publish(_module_topic + "/battery_config", as_string(m->battery_config()));
 }
 
 void MqttAdapter::on_mqtt_master_uptime(String topic_string, String payload_string) {
     DEBUG_PRINT("Got heartbeat from master: ");
     DEBUG_PRINTLN(payload_string);
 
-    // TODO
-    // digitalWrite(LED_BUILTIN, _led_builtin_state);
-    //_led_builtin_state = !led_builtin_state;
+    _bms->flip_led();
 
     unsigned long long uptime_u_long = std::stoull(payload_string.c_str());
 
     if (uptime_u_long - _last_master_uptime > MASTER_TIMEOUT) {
         DEBUG_PRINTLN(uptime_u_long);
-        // DEBUG_PRINTLN(_last_master_uptime);
+        DEBUG_PRINTLN(_last_master_uptime);
         DEBUG_PRINTLN(">>> Master Timeout!!");
     }
     _last_master_uptime = uptime_u_long;
@@ -147,15 +156,15 @@ void MqttAdapter::on_mqtt_master_uptime(String topic_string, String payload_stri
 void MqttAdapter::on_mqtt_balance_request(String topic_string, String payload_string) {
     String cell_name = topic_string.substring((_module_topic + "/cell/").length());
     cell_name = cell_name.substring(0, cell_name.indexOf("/"));
-    long cell_id = cell_id_from_name(cell_name);
-    if (cell_id == -1) {
+    int cell_id = cell_id_from_name(cell_name);
+    if (cell_id == -1 || static_cast<size_t>(cell_id) >= _balance_duration.size()) {
+        DEBUG_PRINTLN(String("MQTT: Got invalid cell name for balancing: ") + cell_name);
         return;
     }
-    if (topic_string == _module_topic + "/cell/" + cell_name + "/balance_request" && _bms->mode() == BmsMode::slave) {
-        unsigned long balance_time = std::stoul(payload_string.c_str());
-        _cells_to_balance_start.at(cell_id) = millis();
-        _cells_to_balance_interval.at(cell_id) = balance_time;
-    }
+
+    time_ms balance_time = std::stoul(payload_string.c_str());
+    _balance_start_time[cell_id] = millis();
+    _balance_duration[cell_id] = balance_time;
 }
 
 void MqttAdapter::on_mqtt_blink(String topic_string, String payload_string) {

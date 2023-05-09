@@ -112,6 +112,7 @@ void BatteryMonitor::measure() {
     _chip_temp = _meb.chip_temp();
     _soc = SOC::voltage_to_soc(_module_voltage);
     calc_cell_diff_trend();
+    _error_count = _meb.error_count();
 }
 
 float BatteryMonitor::min_voltage() const {
@@ -151,7 +152,6 @@ float BatteryMonitor::soc() const {
 }
 
 uint32_t BatteryMonitor::error_count() const {
-    // TODO
     return _error_count;
 }
 

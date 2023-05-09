@@ -12,6 +12,8 @@ class MqttAdapter;
 class BMS {
    public:
     void blink();
+    void flip_led();
+    void set_led(bool led_state);
     void restart();
     void set_module_number(uint8_t module_number);
     void set_mode(BmsMode mode);

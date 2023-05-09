@@ -13,16 +13,8 @@ using MqttCallback = std::function<void(const String&, const String&)>;
 class MqttClient {
    public:
     MqttClient(String server, uint16_t port);
-
-    template <typename T>
-    bool publish(String topic, T value) {
-        return publish(topic, String(value).c_str());
-    }
-
     bool publish(String topic, const char* value);
-
     bool publish(String topic, String value);
-
     bool subscribe(String topic, MqttCallback callback);
     void disconnect();
     bool connected();
@@ -33,6 +25,11 @@ class MqttClient {
     void set_id(String id);
     void set_will(String topic, uint8_t qos, bool retain, String message);
     String state_string();
+
+    template <typename T>
+    bool publish(String topic, T value) {
+        return publish(topic, String(value).c_str());
+    }
 
    private:
     void pub_sub_client_callback(char* topic, uint8_t* payload, unsigned int length);
