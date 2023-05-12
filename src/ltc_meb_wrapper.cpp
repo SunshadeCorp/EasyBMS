@@ -5,7 +5,6 @@
 #include "debug.hpp"
 
 LtcMebWrapper::LtcMebWrapper() : _ltc(LTC68041(D8)) {
-    _pec15_error_count = 0;
     _debug_mode = DEBUG;
     _measure_error = false;
     _balance_error = false;
@@ -49,7 +48,6 @@ void LtcMebWrapper::set_balance_bits(const std::bitset<12> &balance_bits) {
     _ltc.startStatusConv();
     delay(5);  // Wait until conversion is finished
     if (!_ltc.cfgRead()) {
-        _pec15_error_count++;
         _balance_error = true;
     }
 
@@ -84,15 +82,10 @@ std::array<float, 12> LtcMebWrapper::cell_voltages() {
     if (success) {
         _measure_error = false;
     } else {
-        _pec15_error_count++;
         _measure_error = true;
     }
 
     return voltages;
-}
-
-uint32_t LtcMebWrapper::error_count() {
-    return _pec15_error_count;
 }
 
 bool LtcMebWrapper::measure_error() {

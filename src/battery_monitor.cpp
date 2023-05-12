@@ -10,9 +10,10 @@
 #define MINUTES (60 * SECONDS)
 #define HOURS (60 * MINUTES)
 
-BatteryMonitor::BatteryMonitor() {
+BatteryMonitor::BatteryMonitor(std::shared_ptr<BatteryInterface> bat) {
     _cell_diff_trend = {};
-    _meb.init();
+    _bat = bat;
+    _bat->init();
 }
 
 void BatteryMonitor::set_battery_config(BatteryConfig config) {
@@ -60,7 +61,7 @@ void BatteryMonitor::set_balance_bits(const std::vector<bool>& balance_bits) {
         }
     }
 
-    _meb.set_balance_bits(bits);
+    _bat->set_balance_bits(bits);
 }
 
 void BatteryMonitor::detect_battery(const std::array<float, 12>& voltages) {
@@ -74,7 +75,7 @@ void BatteryMonitor::detect_battery(const std::array<float, 12>& voltages) {
 }
 
 void BatteryMonitor::measure() {
-    auto ltc_voltages = _meb.cell_voltages();
+    auto ltc_voltages = _bat->cell_voltages();
     detect_battery(ltc_voltages);
 
     if (_battery_type == BatteryType::meb8s) {
@@ -98,20 +99,34 @@ void BatteryMonitor::measure() {
     _max_voltage = *std::max_element(_cell_voltages.begin(), _cell_voltages.end());
     _cell_diff = _max_voltage - _min_voltage;
     _cell_diff_history.insert(_cell_diff);
-    float voltages_sum = std::accumulate(_cell_voltages.begin(), _cell_voltages.end(), 0);
+    float voltages_sum = 0.0f;
+    for (size_t i = 0; i < _cell_voltages.size(); i++) {
+        voltages_sum += _cell_voltages[i];
+    }
     _avg_voltage = voltages_sum / static_cast<float>(_cell_voltages.size());
-
     _cell_diffs.resize(_cell_voltages.size());
     for (size_t i = 0; i < _cell_voltages.size(); i++) {
         _cell_diffs[i] = _cell_voltages[i] - _avg_voltage;
     }
-    _module_voltage = _meb.module_voltage();
-    _module_temp_1 = _meb.module_temp_1();
-    _module_temp_2 = _meb.module_temp_2();
-    _chip_temp = _meb.chip_temp();
+    _module_voltage = _bat->module_voltage();
+    _module_temp_1 = _bat->module_temp_1();
+    _module_temp_2 = _bat->module_temp_2();
+    _chip_temp = _bat->chip_temp();
     _soc = SOC::voltage_to_soc(_module_voltage);
     calc_cell_diff_trend();
-    _error_count = _meb.error_count();
+    if (_bat->balance_error()) {
+        _balance_error_count++;
+    }
+    if (_bat->measure_error()) {
+        _measure_error_count++;
+    }
+}
+
+uint32_t BatteryMonitor::measure_error_count() const {
+    return _measure_error_count;
+}
+uint32_t BatteryMonitor::balance_error_count() const {
+    return _balance_error_count;
 }
 
 float BatteryMonitor::min_voltage() const {
@@ -148,10 +163,6 @@ float BatteryMonitor::chip_temp() const {
 
 float BatteryMonitor::soc() const {
     return _soc;
-}
-
-uint32_t BatteryMonitor::error_count() const {
-    return _error_count;
 }
 
 std::optional<float> BatteryMonitor::cell_diff_trend() const {

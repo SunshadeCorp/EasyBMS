@@ -2,14 +2,17 @@
 
 #include <array>
 #include <bitset>
+#include <memory>
+#include <optional>
+#include <vector>
 
+#include "battery_interface.hpp"
 #include "battery_type.hpp"
-#include "ltc_meb_wrapper.hpp"
 #include "timed_history.hpp"
 
 class BatteryMonitor {
    public:
-    BatteryMonitor();
+    BatteryMonitor(std::shared_ptr<BatteryInterface> bat);
     void set_balance_bits(const std::vector<bool>& balance_bits);
     void measure();
     const std::vector<float>& cell_voltages() const;
@@ -26,14 +29,15 @@ class BatteryMonitor {
     float module_temp_2() const;
     float chip_temp() const;
     float soc() const;
-    uint32_t error_count() const;
+    uint32_t measure_error_count() const;
+    uint32_t balance_error_count() const;
     std::optional<float> cell_diff_trend() const;
 
    private:
     void calc_cell_diff_trend();
     void detect_battery(const std::array<float, 12>& voltages);
 
-    LtcMebWrapper _meb;
+    std::shared_ptr<BatteryInterface> _bat;
     BatteryConfig _battery_config;
     BatteryType _battery_type;
 
@@ -51,6 +55,7 @@ class BatteryMonitor {
     float _module_temp_2;
     float _chip_temp;
     float _soc;
-    uint32_t _error_count;
+    uint32_t _balance_error_count;
+    uint32_t _measure_error_count;
     std::optional<float> _cell_diff_trend;
 };

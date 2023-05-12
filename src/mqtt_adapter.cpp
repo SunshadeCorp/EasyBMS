@@ -120,7 +120,7 @@ std::vector<bool> MqttAdapter::slave_balance_bits() {
 void MqttAdapter::publish() {
     auto m = _bms->battery_monitor();
     _mqtt->publish(_module_topic + "/uptime", millis());
-    _mqtt->publish(_module_topic + "/pec15_error_count", m->error_count());
+    _mqtt->publish(_module_topic + "/pec15_error_count", m->measure_error_count());
 
     for (size_t i = 0; i < m->cell_voltages().size(); i++) {
         String cell_name = String(i + 1);

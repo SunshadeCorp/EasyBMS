@@ -1,6 +1,9 @@
 #pragma once
 
+#include <Arduino.h>
+
 #include <deque>
+
 
 using time_ms = unsigned long;
 

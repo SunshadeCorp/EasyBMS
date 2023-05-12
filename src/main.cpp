@@ -3,6 +3,8 @@
 #include "config.h"
 #include "debug.hpp"
 #include "display.hpp"
+#include "ltc_meb_wrapper.hpp"
+#include "mock_battery.hpp"
 #include "mqtt_adapter.hpp"
 #include "mqtt_client.hpp"
 #include "single_mode_balancer.hpp"
@@ -14,6 +16,7 @@ std::shared_ptr<SingleModeBalancer> balancer;
 std::shared_ptr<Display> display;
 std::shared_ptr<BMS> bms;
 std::shared_ptr<MqttAdapter> mqtt_adapter;
+std::shared_ptr<BatteryInterface> battery_interface;
 
 [[maybe_unused]] void setup() {
     pinMode(LED_BUILTIN, OUTPUT);
@@ -24,7 +27,8 @@ std::shared_ptr<MqttAdapter> mqtt_adapter;
     DEBUG_BEGIN(74880);
     DEBUG_PRINTLN("init");
 
-    battery_monitor = std::make_shared<BatteryMonitor>();
+    battery_interface = std::make_shared<MockBattery>();
+    battery_monitor = std::make_shared<BatteryMonitor>(battery_interface);
     battery_monitor->set_battery_config(battery_config);
     balancer = std::make_shared<SingleModeBalancer>(60 * 1000, 10 * 1000);
     display = std::make_shared<Display>();
