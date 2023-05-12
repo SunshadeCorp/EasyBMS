@@ -112,7 +112,7 @@ void BatteryMonitor::measure() {
     _module_temp_1 = _bat->module_temp_1();
     _module_temp_2 = _bat->module_temp_2();
     _chip_temp = _bat->chip_temp();
-    _soc = SOC::voltage_to_soc(_module_voltage);
+    _soc = SOC::voltage_to_soc(_avg_voltage);
     calc_cell_diff_trend();
     if (_bat->balance_error()) {
         _balance_error_count++;
