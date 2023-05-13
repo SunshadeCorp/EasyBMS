@@ -41,6 +41,8 @@ class MqttClient {
 #endif
 
     PubSubClient _client;
+    String _server;
+    uint16_t _port;
     String _id;
     String _user;
     String _password;

@@ -1,5 +1,7 @@
 #include "mqtt_client.hpp"
 
+#include "debug.hpp"
+
 MqttClient::MqttClient(String server, uint16_t port) : _client(server.c_str(), port, _espClient) {
     _id = "";
     _user = "";
@@ -9,6 +11,8 @@ MqttClient::MqttClient(String server, uint16_t port) : _client(server.c_str(), p
     _will_retain = true;
     _will_message = "";
     _use_will = false;
+    _server = server;
+    _port = port;
     _client.setCallback([this](char* a, uint8_t* b, unsigned int c) { pub_sub_client_callback(a, b, c); });
 }
 
@@ -26,7 +30,13 @@ void MqttClient::set_id(String id) {
 
 bool MqttClient::connect() {
     if (_use_will) {
-        return _client.connect(_id.c_str(), _user.c_str(), _password.c_str(), _will_topic.c_str(), _will_qos, _will_retain, _will_message.c_str());
+        DEBUG_PRINTLN("server: " + _server);
+        DEBUG_PRINTLN("port: " + _port);
+        DEBUG_PRINTLN("id: " + _id);
+        DEBUG_PRINTLN("user: " + _user);
+        DEBUG_PRINTLN("password: " + _password);
+        // return _client.connect(_id.c_str(), _user.c_str(), _password.c_str(), _will_topic.c_str(), _will_qos, _will_retain, _will_message.c_str());
+        return _client.connect("ijoo");
     } else {
         return _client.connect(_id.c_str(), _user.c_str(), _password.c_str());
     }

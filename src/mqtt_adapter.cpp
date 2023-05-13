@@ -75,7 +75,7 @@ void MqttAdapter::reconnect() {
             _mqtt->subscribe(_mac_topic + "/ota", callback(on_mqtt_ota));
         } else {
             DEBUG_PRINT("failed, rc=");
-            DEBUG_PRINT(_mqtt->state_string());
+            DEBUG_PRINTLN(_mqtt->state_string());
             if (_last_connection != 0 && millis() - _last_connection >= 30000) {
                 _bms->restart();
             }

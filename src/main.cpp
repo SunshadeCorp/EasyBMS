@@ -28,8 +28,7 @@ std::shared_ptr<BatteryInterface> battery_interface;
     DEBUG_PRINTLN("init");
 
     auto mock_battery = std::make_shared<SimulatedBattery>();
-    mock_battery->scenario_everything_ok();
-    mock_battery->scenario_measure_error();
+    mock_battery->scenario_8s();
     battery_monitor = std::make_shared<BatteryMonitor>(mock_battery);
     battery_monitor->set_battery_config(battery_config);
     balancer = std::make_shared<SingleModeBalancer>(60 * 1000, 10 * 1000);

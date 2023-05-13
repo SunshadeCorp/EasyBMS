@@ -21,6 +21,7 @@ class SimulatedBattery : public BatteryInterface {
     void scenario_everything_ok();
     void scenario_balance();
     void scenario_measure_error();
+    void scenario_8s();
 
    private:
     std::array<float, 12> _voltages;
