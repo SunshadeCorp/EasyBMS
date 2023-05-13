@@ -102,6 +102,10 @@ void BatteryMonitor::measure() {
         }
     }
 
+    if (_cell_voltages.size() != _balance_bits.size()) {
+        _balance_bits.assign(_cell_voltages.size(), false);
+    }
+
     _min_voltage = *std::min_element(_cell_voltages.begin(), _cell_voltages.end());
     _max_voltage = *std::max_element(_cell_voltages.begin(), _cell_voltages.end());
     _cell_diff = _max_voltage - _min_voltage;

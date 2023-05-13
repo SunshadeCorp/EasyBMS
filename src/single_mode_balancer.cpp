@@ -20,7 +20,7 @@ void SingleModeBalancer::select_cells_to_balance() {
     } else {
         // Balance all the cells above target_voltage
         for (size_t i = 0; i < _voltages.size(); i++) {
-            if (_voltages[i] > target + 0.003) {
+            if (_voltages[i] > target + 0.005) {
                 _balance_bits[i] = true;
             } else {
                 _balance_bits[i] = false;

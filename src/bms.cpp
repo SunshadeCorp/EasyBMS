@@ -58,6 +58,7 @@ void BMS::loop() {
         _battery_monitor->measure();
 
         if (_mode == BmsMode::slave && _mqtt_adapter != nullptr) {
+            DEBUG_PRINTLN("MQTT Balancing");
             auto balance_bits = _mqtt_adapter->slave_balance_bits();
             _battery_monitor->set_balance_bits(balance_bits);
         } else if (_mode == BmsMode::single && _balancer != nullptr) {

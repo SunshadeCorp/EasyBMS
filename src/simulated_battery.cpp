@@ -78,13 +78,27 @@ float SimulatedBattery::module_voltage() {
     return sum;
 }
 
-std::array<float, 12> SimulatedBattery::cell_voltages() {
+void SimulatedBattery::balance() {
     for (size_t i = 0; i < 12; i++) {
         if (_balance_bits[i]) {
             _voltages[i] = _voltages[i] * 0.9998;
         }
     }
+}
 
+void SimulatedBattery::wiggle() {
+    float wiggle_room = 0.005;
+    for (size_t i = 0; i < 12; i++) {
+        float r = static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
+        if (_voltages[i] > 0.1) {
+            _voltages[i] += (r - 0.5) * wiggle_room;
+        }
+    }
+}
+
+std::array<float, 12> SimulatedBattery::cell_voltages() {
+    balance();
+    wiggle();
     return _voltages;
 }
 
