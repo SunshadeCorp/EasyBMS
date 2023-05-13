@@ -31,6 +31,8 @@ class BatteryMonitor {
     float soc() const;
     uint32_t measure_error_count() const;
     uint32_t balance_error_count() const;
+    bool measure_error() const;
+    bool balance_error() const;
     std::optional<float> cell_diff_trend() const;
 
    private:
@@ -55,6 +57,8 @@ class BatteryMonitor {
     float _module_temp_2;
     float _chip_temp;
     float _soc;
+    bool _measure_error;
+    bool _balance_error;
     uint32_t _balance_error_count;
     uint32_t _measure_error_count;
     std::optional<float> _cell_diff_trend;

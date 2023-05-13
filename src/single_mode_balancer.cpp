@@ -48,23 +48,15 @@ SingleModeBalancer::SingleModeBalancer(long balance_time_ms, long relax_time_ms)
     _relax_start_timestamp = 0;
     _cut_off_voltage = 3.5;
     _balancer_state = BalancerState::Idle;
-    _voltages_initialized = false;
 }
 
-void SingleModeBalancer::update_cell_voltages(const std::vector<float>& voltages) {
+void SingleModeBalancer::SingleModeBalancer::balance(const std::vector<float>& voltages) {
     _voltages = voltages;
-    _voltages_initialized = true;
 
     if (_balance_bits.size() != _voltages.size()) {
         _balance_bits.resize(_voltages.size());
         reset_balance_bits();
         _balancer_state = BalancerState::Idle;
-    }
-}
-
-void SingleModeBalancer::SingleModeBalancer::balance() {
-    if (!_voltages_initialized) {
-        return;
     }
 
     long time = millis();

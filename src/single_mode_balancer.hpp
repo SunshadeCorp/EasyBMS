@@ -1,13 +1,15 @@
 #pragma once
 
 #include <balancer.hpp>
+#include <memory>
 #include <vector>
+
+#include "battery_monitor.hpp"
 
 class SingleModeBalancer : IBalancer {
    public:
     SingleModeBalancer(long balance_time_ms, long relax_time_ms);
-    void update_cell_voltages(const std::vector<float>& voltages);
-    void balance();
+    void balance(const std::vector<float>& voltages);
     std::vector<bool> balance_bits() const;
 
    private:
@@ -26,7 +28,6 @@ class SingleModeBalancer : IBalancer {
     float _cut_off_voltage;
 
     BalancerState _balancer_state;
-    bool _voltages_initialized;
     std::vector<float> _voltages;
     std::vector<bool> _balance_bits;
 

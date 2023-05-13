@@ -54,23 +54,21 @@ std::shared_ptr<const BatteryMonitor> BMS::battery_monitor() {
 
 void BMS::loop() {
     if (millis() - _last_ltc_check > LTC_CHECK_INTERVAL) {
-        DEBUG_PRINTLN("Measure");
         _last_ltc_check = millis();
         _battery_monitor->measure();
 
-        /*
-        DEBUG_PRINTLN("Balance");
-        std::vector<bool> balance_bits{};
         if (_mode == BmsMode::slave && _mqtt_adapter != nullptr) {
-            balance_bits = _mqtt_adapter->slave_balance_bits();
+            auto balance_bits = _mqtt_adapter->slave_balance_bits();
             _battery_monitor->set_balance_bits(balance_bits);
         } else if (_mode == BmsMode::single && _balancer != nullptr) {
-            _balancer->update_cell_voltages(_battery_monitor->cell_voltages());
-            _balancer->balance();
-            balance_bits = _balancer->balance_bits();
-            _battery_monitor->set_balance_bits(balance_bits);
+            DEBUG_PRINTLN("single mode balancing");
+            _balancer->balance(_battery_monitor->cell_voltages());
+            for (int i = 0; i < 12; i++) {
+                DEBUG_PRINT(_balancer->balance_bits()[i] ? 1 : 0);
+            }
+            DEBUG_PRINTLN();
+            _battery_monitor->set_balance_bits(_balancer->balance_bits());
         }
-        */
 
         if (_mqtt_adapter != nullptr) {
             DEBUG_PRINTLN("Update MQTT");
@@ -78,7 +76,6 @@ void BMS::loop() {
         }
 
         if (_display != nullptr) {
-            DEBUG_PRINTLN("Update Display");
             _display->update(_battery_monitor);
         }
     }

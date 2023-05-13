@@ -77,8 +77,12 @@ void Display::update(std::shared_ptr<BatteryMonitor> m) {
     // Print Cell Voltages
     auto& cell_voltages = m->cell_voltages();
     for (size_t i = 0; i < cell_voltages.size(); i++) {
-        String cell_voltage = format_cell_voltage(cell_voltages[i]);
-        print(0, i, cell_voltage);
+        if (m->measure_error()) {
+            print(0, i, "-----");
+        } else {
+            String cell_voltage = format_cell_voltage(cell_voltages[i]);
+            print(0, i, cell_voltage);
+        }
     }
 
     // Print Balance Bits
@@ -91,7 +95,7 @@ void Display::update(std::shared_ptr<BatteryMonitor> m) {
 
     // Print Stats
     String cell_diff = format_cell_voltage(m->cell_diff());
-    String soc = format(m->soc(), 1, -99.9, 999.9);
+    String soc = format(m->soc(), 1, -99.9, 999.9, "%");
     String module_voltage = format(m->module_voltage(), 1, 0, 99.9, "V");
     String min_cell_voltage = format_cell_voltage(m->min_voltage());
     String avg_cell_voltage = format_cell_voltage(m->avg_voltage());
@@ -99,12 +103,22 @@ void Display::update(std::shared_ptr<BatteryMonitor> m) {
     String module_temp_1 = format_temp(m->module_temp_1());
     String module_temp_2 = format_temp(m->module_temp_2());
     String chip_temp = format_temp(m->chip_temp());
+    String error_string = m->measure_error() ? "ERROR" : "";
+
+    if (m->measure_error()) {
+        min_cell_voltage = "-----";
+        max_cell_voltage = "-----";
+        avg_cell_voltage = "-----";
+        soc = "-----";
+        cell_diff = "-----";
+        module_voltage = "-----";
+    }
 
     String cell_diff_trend;
     if (m->cell_diff_trend().has_value()) {
         cell_diff_trend = format(m->cell_diff_trend().value(), 0, -99, 99, "mVh");
     } else {
-        cell_diff_trend = "-";
+        cell_diff_trend = "-----";
     }
 
     print(7, 0, "Dif:" + cell_diff);
@@ -117,6 +131,7 @@ void Display::update(std::shared_ptr<BatteryMonitor> m) {
     print(7, 7, "t1: " + module_temp_1);
     print(7, 8, "t2: " + module_temp_2);
     print(7, 9, "ti: " + chip_temp);
+    print(7, 11, error_string);
 
     flip();
 }

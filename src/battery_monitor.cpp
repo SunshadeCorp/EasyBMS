@@ -36,6 +36,13 @@ BatteryConfig BatteryMonitor::battery_config() const {
     return _battery_config;
 }
 
+bool BatteryMonitor::measure_error() const {
+    return _measure_error;
+}
+bool BatteryMonitor::balance_error() const {
+    return _balance_error;
+}
+
 void BatteryMonitor::set_balance_bits(const std::vector<bool>& balance_bits) {
     _balance_bits = balance_bits;
 
@@ -114,10 +121,12 @@ void BatteryMonitor::measure() {
     _chip_temp = _bat->chip_temp();
     _soc = SOC::voltage_to_soc(_avg_voltage);
     calc_cell_diff_trend();
-    if (_bat->balance_error()) {
+    _balance_error = _bat->balance_error();
+    if (_balance_error) {
         _balance_error_count++;
     }
-    if (_bat->measure_error()) {
+    _measure_error = _bat->measure_error();
+    if (_measure_error) {
         _measure_error_count++;
     }
 }

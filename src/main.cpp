@@ -4,9 +4,9 @@
 #include "debug.hpp"
 #include "display.hpp"
 #include "ltc_meb_wrapper.hpp"
-#include "mock_battery.hpp"
 #include "mqtt_adapter.hpp"
 #include "mqtt_client.hpp"
+#include "simulated_battery.hpp"
 #include "single_mode_balancer.hpp"
 #include "timed_history.hpp"
 #include "wifi.hpp"
@@ -27,8 +27,10 @@ std::shared_ptr<BatteryInterface> battery_interface;
     DEBUG_BEGIN(74880);
     DEBUG_PRINTLN("init");
 
-    battery_interface = std::make_shared<MockBattery>();
-    battery_monitor = std::make_shared<BatteryMonitor>(battery_interface);
+    auto mock_battery = std::make_shared<SimulatedBattery>();
+    mock_battery->scenario_everything_ok();
+    mock_battery->scenario_measure_error();
+    battery_monitor = std::make_shared<BatteryMonitor>(mock_battery);
     battery_monitor->set_battery_config(battery_config);
     balancer = std::make_shared<SingleModeBalancer>(60 * 1000, 10 * 1000);
     display = std::make_shared<Display>();
@@ -40,12 +42,11 @@ std::shared_ptr<BatteryInterface> battery_interface;
 
     display->init();
 
-    auto hostname = String("easybms-") + mac_string();
-    connect_wifi(hostname, ssid, password);
-    digitalWrite(LED_BUILTIN, true);
-
     if (use_mqtt) {
         DEBUG_PRINTLN("Setup MQTT");
+        auto hostname = String("easybms-") + mac_string();
+        connect_wifi(hostname, ssid, password);
+        digitalWrite(LED_BUILTIN, true);
         auto mqtt = std::make_shared<MqttClient>(mqtt_server, mqtt_port);
         mqtt->set_user(mqtt_username);
         mqtt->set_password(mqtt_password);
