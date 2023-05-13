@@ -1,4 +1,4 @@
-#include "balancer.hpp"
+#include "balancer_interface.hpp"
 #include "battery_monitor.hpp"
 #include "config.h"
 #include "debug.hpp"
@@ -12,7 +12,7 @@
 #include "wifi.hpp"
 
 std::shared_ptr<BatteryMonitor> battery_monitor;
-std::shared_ptr<SingleModeBalancer> balancer;
+std::shared_ptr<IBalancer> balancer;
 std::shared_ptr<Display> display;
 std::shared_ptr<BMS> bms;
 std::shared_ptr<MqttAdapter> mqtt_adapter;
@@ -32,10 +32,8 @@ std::shared_ptr<BatteryInterface> battery_interface;
     auto battery_interface = std::make_shared<LtcMebWrapper>();
     battery_monitor = std::make_shared<BatteryMonitor>(battery_interface);
     battery_monitor->set_battery_config(battery_config);
-    // balancer = std::make_shared<SingleModeBalancer>(60 * 1000, 10 * 1000);
     display = std::make_shared<Display>();
     bms = std::make_shared<BMS>();
-    // bms->set_balancer(balancer);
     bms->set_mode(bms_mode);
     bms->set_display(display);
     bms->set_battery_monitor(battery_monitor);
@@ -57,6 +55,14 @@ std::shared_ptr<BatteryInterface> battery_interface;
         mqtt_adapter->init();
         bms->set_mqtt_adapter(mqtt_adapter);
     }
+
+    if (bms_mode == BmsMode::single) {
+        balancer = std::make_shared<SingleModeBalancer>(60 * 1000, 10 * 1000);
+    } else if (bms_mode == BmsMode::slave && use_mqtt) {
+        balancer = mqtt_adapter;
+    }
+
+    bms->set_balancer(balancer);
 }
 
 void loop() {

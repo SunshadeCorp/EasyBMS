@@ -32,7 +32,7 @@ BmsMode BMS::mode() const {
     return _mode;
 }
 
-void BMS::set_balancer(std::shared_ptr<SingleModeBalancer> balancer) {
+void BMS::set_balancer(std::shared_ptr<IBalancer> balancer) {
     _balancer = balancer;
 }
 
@@ -57,12 +57,8 @@ void BMS::loop() {
         _last_ltc_check = millis();
         _battery_monitor->measure();
 
-        if (_mode == BmsMode::slave && _mqtt_adapter != nullptr) {
-            DEBUG_PRINTLN("MQTT Balancing");
-            auto balance_bits = _mqtt_adapter->slave_balance_bits();
-            _battery_monitor->set_balance_bits(balance_bits);
-        } else if (_mode == BmsMode::single && _balancer != nullptr) {
-            DEBUG_PRINTLN("single mode balancing");
+        if (_balancer != nullptr) {
+            DEBUG_PRINTLN("Balancing");
             _balancer->balance(_battery_monitor->cell_voltages());
             _battery_monitor->set_balance_bits(_balancer->balance_bits());
         }

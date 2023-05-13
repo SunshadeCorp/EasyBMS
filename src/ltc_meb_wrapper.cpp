@@ -4,7 +4,7 @@
 
 #include "debug.hpp"
 
-LtcMebWrapper::LtcMebWrapper() : _ltc(LTC68041(D8)) {
+LtcMebWrapper::LtcMebWrapper() {
     _debug_mode = DEBUG;
     _measure_error = false;
     _balance_error = false;

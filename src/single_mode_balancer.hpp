@@ -1,16 +1,16 @@
 #pragma once
 
-#include <balancer.hpp>
+#include <balancer_interface.hpp>
 #include <memory>
 #include <vector>
 
 #include "battery_monitor.hpp"
 
-class SingleModeBalancer : IBalancer {
+class SingleModeBalancer : public IBalancer {
    public:
     SingleModeBalancer(long balance_time_ms, long relax_time_ms);
-    void balance(const std::vector<float>& voltages);
-    std::vector<bool> balance_bits() const;
+    void balance(const std::vector<float>& voltages) override;
+    std::vector<bool> balance_bits() override;
 
    private:
     enum class BalancerState {

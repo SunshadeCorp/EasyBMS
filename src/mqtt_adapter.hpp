@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <bitset>
 
+#include "balancer_interface.hpp"
 #include "bms.hpp"
 #include "mqtt_client.hpp"
 
@@ -13,14 +14,15 @@ class BMS;
 
 using time_ms = unsigned long;
 
-class MqttAdapter {
+class MqttAdapter : public IBalancer {
    public:
     MqttAdapter(std::shared_ptr<BMS> bms, std::shared_ptr<MqttClient> mqtt);
 
     void init();
     void reconnect();
     void loop();
-    std::vector<bool> slave_balance_bits();
+    void balance(const std::vector<float>& voltages) override;
+    std::vector<bool> balance_bits() override;
     void publish();
     void set_ota_server(String ota_server);
     void set_ota_cert(const BearSSL::X509List* cert);

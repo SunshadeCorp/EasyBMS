@@ -2,7 +2,6 @@
 
 #include <Arduino.h>
 
-#include <balancer.hpp>
 #include <vector>
 
 void SingleModeBalancer::reset_balance_bits() {
@@ -82,6 +81,6 @@ void SingleModeBalancer::SingleModeBalancer::balance(const std::vector<float>& v
     }
 }
 
-std::vector<bool> SingleModeBalancer::balance_bits() const {
+std::vector<bool> SingleModeBalancer::balance_bits() {
     return _balance_bits;
 }
