@@ -63,15 +63,12 @@ void BMS::loop() {
         } else if (_mode == BmsMode::single && _balancer != nullptr) {
             DEBUG_PRINTLN("single mode balancing");
             _balancer->balance(_battery_monitor->cell_voltages());
-            for (int i = 0; i < 12; i++) {
-                DEBUG_PRINT(_balancer->balance_bits()[i] ? 1 : 0);
-            }
-            DEBUG_PRINTLN();
             _battery_monitor->set_balance_bits(_balancer->balance_bits());
         }
 
         if (_mqtt_adapter != nullptr) {
             DEBUG_PRINTLN("Update MQTT");
+            _mqtt_adapter->reconnect();
             _mqtt_adapter->publish();
         }
 

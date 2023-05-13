@@ -29,14 +29,9 @@ void MqttClient::set_id(String id) {
 }
 
 bool MqttClient::connect() {
+    _client.setServer(_server.c_str(), _port);
     if (_use_will) {
-        DEBUG_PRINTLN("server: " + _server);
-        DEBUG_PRINTLN("port: " + _port);
-        DEBUG_PRINTLN("id: " + _id);
-        DEBUG_PRINTLN("user: " + _user);
-        DEBUG_PRINTLN("password: " + _password);
-        // return _client.connect(_id.c_str(), _user.c_str(), _password.c_str(), _will_topic.c_str(), _will_qos, _will_retain, _will_message.c_str());
-        return _client.connect("ijoo");
+        return _client.connect(_id.c_str(), _user.c_str(), _password.c_str(), _will_topic.c_str(), _will_qos, _will_retain, _will_message.c_str());
     } else {
         return _client.connect(_id.c_str(), _user.c_str(), _password.c_str());
     }
