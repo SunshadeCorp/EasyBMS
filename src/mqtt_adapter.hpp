@@ -23,7 +23,7 @@ class MqttAdapter : public IBalancer {
     void loop();
     void balance(const std::vector<float>& voltages) override;
     std::vector<bool> balance_bits() override;
-    void publish();
+    void update();
     void set_ota_server(String ota_server);
     void set_ota_cert(const BearSSL::X509List* cert);
     String module_topic() const;
@@ -54,4 +54,5 @@ class MqttAdapter : public IBalancer {
     String cpu_description() const;
     String flash_description() const;
     void reset_balancing(size_t size);
+    void publish(String topic);
 };

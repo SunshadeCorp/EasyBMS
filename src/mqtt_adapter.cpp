@@ -121,24 +121,43 @@ std::vector<bool> MqttAdapter::balance_bits() {
     return balance_bits;
 }
 
-void MqttAdapter::publish() {
+void MqttAdapter::publish(String topic) {
     auto m = _bms->battery_monitor();
-    _mqtt->publish(_module_topic + "/uptime", millis());
-    _mqtt->publish(_module_topic + "/pec15_error_count", m->measure_error_count());
+    _mqtt->publish(topic + "/uptime", millis());
+    _mqtt->publish(topic + "/pec15_error_count", m->measure_error_count());
 
     for (size_t i = 0; i < m->cell_voltages().size(); i++) {
         String cell_name = String(i + 1);
         if (cell_name != "undefined") {
-            _mqtt->publish(_module_topic + "/cell/" + cell_name + "/voltage", String(m->cell_voltages()[i], 3));
-            _mqtt->publish(_module_topic + "/cell/" + cell_name + "/is_balancing", m->balance_bits()[i] ? "1" : "0");
+            _mqtt->publish(topic + "/cell/" + cell_name + "/voltage", String(m->cell_voltages()[i], 3));
+            _mqtt->publish(topic + "/cell/" + cell_name + "/is_balancing", m->balance_bits()[i] ? "1" : "0");
         }
     }
 
-    _mqtt->publish(_module_topic + "/module_voltage", m->module_voltage());
-    _mqtt->publish(_module_topic + "/module_temps", String(m->module_temp_1()) + "," + String(m->module_temp_2()));
-    _mqtt->publish(_module_topic + "/chip_temp", m->chip_temp());
-    _mqtt->publish(_module_topic + "/battery_type", as_string(m->battery_type()));
-    _mqtt->publish(_module_topic + "/battery_config", as_string(m->battery_config()));
+    _mqtt->publish(topic + "/module_voltage", m->module_voltage());
+    _mqtt->publish(topic + "/module_temps", String(m->module_temp_1()) + "," + String(m->module_temp_2()));
+    _mqtt->publish(topic + "/chip_temp", m->chip_temp());
+    _mqtt->publish(topic + "/battery_type", as_string(m->battery_type()));
+    _mqtt->publish(topic + "/battery_config", as_string(m->battery_config()));
+}
+
+void MqttAdapter::update() {
+    bool is_balancing = false;
+
+    const auto& balance_bits = _bms->battery_monitor()->balance_bits();
+    for (size_t i = 0; i < balance_bits.size(); i++) {
+        if (balance_bits[i]) {
+            is_balancing = true;
+        }
+    }
+
+    if (is_balancing) {
+        publish(_module_topic);
+    } else {
+        // Deprecated
+        publish(_module_topic + "/accurate");
+        publish(_module_topic);
+    }
 }
 
 String MqttAdapter::module_topic() const {

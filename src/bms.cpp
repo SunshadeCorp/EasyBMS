@@ -64,7 +64,7 @@ void BMS::loop() {
 
         if (_mqtt_adapter != nullptr) {
             _mqtt_adapter->reconnect();
-            _mqtt_adapter->publish();
+            _mqtt_adapter->update();
         }
 
         if (_display != nullptr) {
