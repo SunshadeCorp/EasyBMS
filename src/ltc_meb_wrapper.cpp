@@ -1,6 +1,6 @@
 #include "ltc_meb_wrapper.hpp"
 
-#include <LTC6804.cpp>  // used for template functions
+#include <LTC68041.cpp>  // used for template functions
 
 #include "debug.hpp"
 
@@ -41,7 +41,7 @@ void LtcMebWrapper::set_balance_bits(const std::bitset<12> &balance_bits) {
     _ltc.cfgWrite();
 
     // Start different Analog-Digital-Conversions in the Chip
-    _ltc.startCellConv(LTC68041::DCP_DISABLED);
+    _ltc.startCellConv(LTC6804::DCP_DISABLED);
     delay(5);  // Wait until conversion is finished
     _ltc.startAuxConv();
     delay(5);  // Wait until conversion is finished
@@ -61,15 +61,15 @@ void LtcMebWrapper::set_balance_bits(const std::bitset<12> &balance_bits) {
 }
 
 float LtcMebWrapper::module_temp_1() {
-    return raw_voltage_to_real_module_temp(_ltc.getAuxVoltage(LTC68041::AuxChannel::CHG_GPIO1));
+    return raw_voltage_to_real_module_temp(_ltc.getAuxVoltage(LTC6804::AuxChannel::CHG_GPIO1));
 }
 
 float LtcMebWrapper::module_temp_2() {
-    return raw_voltage_to_real_module_temp(_ltc.getAuxVoltage(LTC68041::AuxChannel::CHG_GPIO2));
+    return raw_voltage_to_real_module_temp(_ltc.getAuxVoltage(LTC6804::AuxChannel::CHG_GPIO2));
 }
 
 float LtcMebWrapper::module_voltage() {
-    return _ltc.getStatusVoltage(LTC68041::CHST_SOC);
+    return _ltc.getStatusVoltage(LTC6804::CHST_SOC);
 }
 
 float LtcMebWrapper::chip_temp() {

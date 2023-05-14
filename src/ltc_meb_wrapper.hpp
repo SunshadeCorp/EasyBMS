@@ -1,11 +1,13 @@
 #pragma once
 
-#include <LTC6804.h>
+#include <LTC68041.h>
 
 #include <array>
 #include <bitset>
 
 #include "battery_interface.hpp"
+
+#define LTC6804 LTC68041
 
 class LtcMebWrapper : public BatteryInterface {
    public:
@@ -21,7 +23,7 @@ class LtcMebWrapper : public BatteryInterface {
     bool measure_error() override;
 
    private:
-    LTC68041 _ltc = LTC68041(D8);
+    LTC6804 _ltc = LTC6804(D8);
     uint32_t _pec15_error_count;
     bool _debug_mode;
     bool _balance_error;
