@@ -24,11 +24,11 @@ void BMS::restart() {
     EspClass::restart();
 }
 
-void BMS::set_mode(BmsMode mode) {
+void BMS::set_mode(BalanceMode mode) {
     _mode = mode;
 }
 
-BmsMode BMS::mode() const {
+BalanceMode BMS::mode() const {
     return _mode;
 }
 
@@ -58,13 +58,11 @@ void BMS::loop() {
         _battery_monitor->measure();
 
         if (_balancer != nullptr) {
-            DEBUG_PRINTLN("Balancing");
             _balancer->balance(_battery_monitor->cell_voltages());
             _battery_monitor->set_balance_bits(_balancer->balance_bits());
         }
 
         if (_mqtt_adapter != nullptr) {
-            DEBUG_PRINTLN("Update MQTT");
             _mqtt_adapter->reconnect();
             _mqtt_adapter->publish();
         }

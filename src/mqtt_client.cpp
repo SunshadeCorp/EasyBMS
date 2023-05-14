@@ -49,10 +49,6 @@ bool MqttClient::publish(String topic, const char* value) {
     return _client.publish(topic.c_str(), value, true);
 }
 
-bool MqttClient::publish(String topic, String value) {
-    return _client.publish(topic.c_str(), value.c_str(), true);
-}
-
 void MqttClient::disconnect() {
     _client.disconnect();
 }
@@ -93,18 +89,17 @@ String MqttClient::state_string() {
     }
 }
 
-using MqttCallback = std::function<void(const String&, const String&)>;
-std::map<String, MqttCallback> mqtt_callbacks;
-
 void MqttClient::pub_sub_client_callback(char* topic, uint8_t* payload, unsigned int length) {
     String topic_string = String(topic);
     String payload_string = String();
     payload_string.concat((char*)payload, length);
 
-    _mqtt_callbacks[topic_string](topic_string, payload_string);
+    if (_mqtt_callbacks.find(topic_string) != _mqtt_callbacks.end()) {
+        _mqtt_callbacks[topic_string](topic_string, payload_string);
+    }
 }
 
-boolean MqttClient::subscribe(String topic, MqttCallback callback) {
+bool MqttClient::subscribe(String topic, MqttCallback callback) {
     _mqtt_callbacks[topic] = callback;
     return _client.subscribe(topic.c_str());
 }

@@ -9,7 +9,7 @@
 #include "version.h"
 #include "wifi.hpp"
 
-MqttAdapter::MqttAdapter(std::shared_ptr<BMS> bms, std::shared_ptr<MqttClient> mqtt) {
+MqttAdapter::MqttAdapter(std::shared_ptr<BMS> bms, std::shared_ptr<IMqttClient> mqtt) {
     _bms = bms;
     _mqtt = mqtt;
 }
@@ -141,6 +141,10 @@ void MqttAdapter::publish() {
     _mqtt->publish(_module_topic + "/battery_config", as_string(m->battery_config()));
 }
 
+String MqttAdapter::module_topic() const {
+    return _module_topic;
+}
+
 void MqttAdapter::on_mqtt_master_uptime(String topic_string, String payload_string) {
     DEBUG_PRINT("Got heartbeat from master: ");
     DEBUG_PRINTLN(payload_string);
@@ -163,6 +167,8 @@ void MqttAdapter::on_mqtt_balance_request(String topic_string, String payload_st
     int cell_id = cell_id_from_name(cell_name);
     if (cell_id == -1 || static_cast<size_t>(cell_id) >= _balance_duration.size()) {
         DEBUG_PRINTLN(String("MQTT: Got invalid cell name for balancing: ") + cell_name);
+        DEBUG_PRINTLN("_balance_duration.size(): " + String(_balance_duration.size()));
+        DEBUG_PRINTLN("_balance_start_time.size(): " + String(_balance_start_time.size()));
         return;
     }
 

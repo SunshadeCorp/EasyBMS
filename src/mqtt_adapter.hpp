@@ -8,7 +8,7 @@
 
 #include "balancer_interface.hpp"
 #include "bms.hpp"
-#include "mqtt_client.hpp"
+#include "mqtt_client_interface.hpp"
 
 class BMS;
 
@@ -16,7 +16,7 @@ using time_ms = unsigned long;
 
 class MqttAdapter : public IBalancer {
    public:
-    MqttAdapter(std::shared_ptr<BMS> bms, std::shared_ptr<MqttClient> mqtt);
+    MqttAdapter(std::shared_ptr<BMS> bms, std::shared_ptr<IMqttClient> mqtt);
 
     void init();
     void reconnect();
@@ -26,10 +26,11 @@ class MqttAdapter : public IBalancer {
     void publish();
     void set_ota_server(String ota_server);
     void set_ota_cert(const BearSSL::X509List* cert);
+    String module_topic() const;
 
    private:
     std::shared_ptr<BMS> _bms;
-    std::shared_ptr<MqttClient> _mqtt;
+    std::shared_ptr<IMqttClient> _mqtt;
     static const time_ms MASTER_TIMEOUT = 5000;
     time_ms _last_connection = 0;
     String _hostname;

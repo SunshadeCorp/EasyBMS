@@ -37,12 +37,10 @@ BatteryConfig BatteryMonitor::battery_config() const {
 }
 
 bool BatteryMonitor::measure_error() const {
-    // return _measure_error;
-    return false;
+    return _measure_error;
 }
 bool BatteryMonitor::balance_error() const {
-    // return _balance_error;
-    return false;
+    return _balance_error;
 }
 
 void BatteryMonitor::set_balance_bits(const std::vector<bool>& balance_bits) {

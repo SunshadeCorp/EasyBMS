@@ -1,9 +1,11 @@
+#include "Arduino.h"
 #include "balancer_interface.hpp"
 #include "battery_monitor.hpp"
 #include "config.h"
 #include "debug.hpp"
 #include "display.hpp"
 #include "ltc_meb_wrapper.hpp"
+#include "mock_mqtt_client.hpp"
 #include "mqtt_adapter.hpp"
 #include "mqtt_client.hpp"
 #include "simulated_battery.hpp"
@@ -15,6 +17,7 @@ std::shared_ptr<BatteryMonitor> battery_monitor;
 std::shared_ptr<IBalancer> balancer;
 std::shared_ptr<Display> display;
 std::shared_ptr<BMS> bms;
+std::shared_ptr<MockMqttClient> mock_mqtt_client;
 std::shared_ptr<MqttAdapter> mqtt_adapter;
 std::shared_ptr<BatteryInterface> battery_interface;
 
@@ -27,8 +30,8 @@ std::shared_ptr<BatteryInterface> battery_interface;
     DEBUG_BEGIN(74880);
     DEBUG_PRINTLN("init");
 
-    // auto mock_battery = std::make_shared<SimulatedBattery>();
-    // mock_battery->scenario_8s();
+    // auto battery_interface = std::make_shared<SimulatedBattery>();
+    // battery_interface->scenario_everything_ok();
     auto battery_interface = std::make_shared<LtcMebWrapper>();
     battery_monitor = std::make_shared<BatteryMonitor>(battery_interface);
     battery_monitor->set_battery_config(battery_config);
@@ -45,10 +48,18 @@ std::shared_ptr<BatteryInterface> battery_interface;
         auto hostname = String("easybms-") + mac_string();
         connect_wifi(hostname, ssid, password);
         digitalWrite(LED_BUILTIN, true);
+
         auto mqtt = std::make_shared<MqttClient>(mqtt_server, mqtt_port);
         mqtt->set_user(mqtt_username);
         mqtt->set_password(mqtt_password);
         mqtt->set_id(hostname);
+
+        /*
+         mock_mqtt_client = std::make_shared<MockMqttClient>();
+         mock_mqtt_client->is_connected = false;
+         mock_mqtt_client->connect_result = true;
+         */
+
         mqtt_adapter = std::make_shared<MqttAdapter>(bms, mqtt);
         mqtt_adapter->set_ota_server(ota_server);
         mqtt_adapter->set_ota_cert(&cert);
@@ -56,9 +67,9 @@ std::shared_ptr<BatteryInterface> battery_interface;
         bms->set_mqtt_adapter(mqtt_adapter);
     }
 
-    if (bms_mode == BmsMode::single) {
+    if (bms_mode == BalanceMode::single) {
         balancer = std::make_shared<SingleModeBalancer>(60 * 1000, 10 * 1000);
-    } else if (bms_mode == BmsMode::slave && use_mqtt) {
+    } else if (bms_mode == BalanceMode::slave && use_mqtt) {
         balancer = mqtt_adapter;
     }
 

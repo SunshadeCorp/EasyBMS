@@ -1,7 +1,5 @@
 #pragma once
 
-#include <ESP8266WiFi.h>
-#include <PubSubClient.h>
 #include <WString.h>
 
 #include <map>
@@ -10,9 +8,11 @@
 
 #define SSL_ENABLED false
 
-class MqttClient : public IMqttClient {
+using MqttCallback = std::function<void(const String&, const String&)>;
+
+class MockMqttClient : public IMqttClient {
    public:
-    MqttClient(String server, uint16_t port);
+    MockMqttClient();
     bool publish(String topic, const char* value) override;
     bool subscribe(String topic, MqttCallback callback) override;
     void disconnect() override;
@@ -25,25 +25,21 @@ class MqttClient : public IMqttClient {
     void set_will(String topic, uint8_t qos, bool retain, String message) override;
     String state_string() override;
 
-   private:
-    void pub_sub_client_callback(char* topic, uint8_t* payload, unsigned int length);
+    void receive_messagge(String topic, String payload);
 
-#if SSL_ENABLED
-    WiFiClientSecure espClient;
-#else
-    WiFiClient _espClient;
-#endif
+   public:
+    String id;
+    String user;
+    String password;
+    String will_topic;
+    uint8_t will_qos;
+    bool will_retain;
+    String will_message;
 
-    PubSubClient _client;
-    String _server;
-    uint16_t _port;
-    String _id;
-    String _user;
-    String _password;
-    String _will_topic;
-    uint8_t _will_qos;
-    bool _will_retain;
-    String _will_message;
-    bool _use_will;
-    std::map<String, MqttCallback> _mqtt_callbacks;
+    std::map<String, MqttCallback> mqtt_callbacks;
+    bool connect_result;
+    bool loop_result;
+    bool is_connected;
+    bool publish_result;
+    String state;
 };
