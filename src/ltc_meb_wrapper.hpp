@@ -7,8 +7,6 @@
 
 #include "battery_interface.hpp"
 
-#define LTC6804 LTC68041
-
 class LtcMebWrapper : public BatteryInterface {
    public:
     LtcMebWrapper();
@@ -23,7 +21,7 @@ class LtcMebWrapper : public BatteryInterface {
     bool measure_error() override;
 
    private:
-    LTC6804 _ltc = LTC6804(D8);
+    LTC68041 _ltc = LTC68041(D8);
     uint32_t _pec15_error_count;
     bool _debug_mode;
     bool _balance_error;

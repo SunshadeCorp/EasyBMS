@@ -19,9 +19,11 @@ https://github.com/jontubs/EasyBMS
  *
  * @param pCS Pin used as chip select
  */
+/*
 LTC68042::LTC68042(byte pCS, float tempOffset) : offsetTemp(tempOffset), am(AM_BROADCAST), address(0), md(MD_NORMAL), pinCS(pCS), regs({}) {
     regs.CFGR0w = 0xFE;
 }
+*/
 
 /**
  * @brief Creating of the object LTC6804 (Version 2)

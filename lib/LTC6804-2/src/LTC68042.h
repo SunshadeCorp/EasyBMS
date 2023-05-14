@@ -202,7 +202,7 @@ class LTC68042 {
     };
 
     // Methods
-    LTC68042(byte pCS, float tempOffset = 0.0);
+    // LTC68042(byte pCS, float tempOffset = 0.0);
     explicit LTC68042(std::uint16_t addr, byte pCS, float tempOffset = 0.0);
     void initSPI(byte pinMOSI, byte pinMISO, byte pinCLK);
     void destroySPI();
