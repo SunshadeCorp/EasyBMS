@@ -1,0 +1,9 @@
+﻿---
+BasedOnStyle: Google
+IndentWidth: '4'
+ColumnLimit: '160'
+AllowShortFunctionsOnASingleLine: None
+TabWidth: '4'
+UseTab: Never
+
+...

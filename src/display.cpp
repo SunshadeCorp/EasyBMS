@@ -1,103 +1,137 @@
 #include "display.hpp"
 
-// Option 1 (recommended): must use the hardware SPI pins
-// (for UNO thats sclk = 13 and sid = 11) and pin 10 must be
-// an output. This is much faster - also required if you want
-// to use the microSD card (see the image drawing example)
+#include <SPI.h>
 
-// For 1.44" and 1.8" TFT with ST7735 use
-Adafruit_ST7735 tft = Adafruit_ST7735(TFT_CS,  TFT_DC, TFT_RST); // Fast
-//Adafruit_ST7735 tft = Adafruit_ST7735(TFT_CS, TFT_DC, TFT_MOSI, TFT_SCLK, TFT_RST); // Slow
+#include <array>
 
-void drawtext(const char *text, uint16_t color) {
-  tft.setCursor(0, 0);
-  tft.setTextColor(color);
-  tft.setTextWrap(true);
-  tft.print(text);
-}
-
-/*
-void draw_cell_voltage(const char* text, int row, int column) {
-    uint8_t text_size = 1;
-    tft.setTextSize(text_size);
-    tft.setCursor(column*8*4, row*8*text_size);
-    tft.setTextWrap(true);
-    tft.print(text);
-}
-*/
-
-void draw_cell_voltages(const DisplayData& data) {
-  /*
-  tft.invertDisplay(true);
-  delay(500);
-  tft.invertDisplay(false);
-  delay(500);
-  */
-  
-
-  uint8_t text_size = 1;
-  tft.setTextSize(text_size);
-  tft.setRotation(1);
-  tft.setTextWrap(true);
-  tft.setTextColor(0xFFFF, 0x0000);
-  tft.setTextWrap(true);
-
-  String display_text;
-
-  for (int i = 0; i < 12; i++) {
-    display_text = String(data.measurements.cell_voltages[i], 3);
-    tft.setCursor(0*8*4*text_size, i*8*text_size);
-    tft.print(display_text.c_str());
-  }
-  for (int i = 0; i < 12; i++) 
-  {
-    String display_text;
-    if(data.balance_bits[i])
-    {
-      display_text = String("-");
-
+Display::Display() : _tft(TFT_eSPI()) {
+    for (auto& row : _old_chars) {
+        for (auto& c : row) {
+            c = ' ';
+        }
     }
-    else
-    {
-      display_text = String(" ");
-    }
-    tft.setCursor(1*8*4*text_size, i*8*text_size);
-    tft.print(display_text.c_str());
-  }
-
-  display_text = "dif:"+String(data.measurements.cell_diff, 0)+"mV";
-  tft.setCursor(6*8*text_size, 0*8*text_size);
-  tft.print("       ");
-  tft.setCursor(6*8*text_size, 0*8*text_size);
-  tft.print(display_text.c_str());
-
-  display_text = "min:"+String(data.measurements.min_cell_voltage, 3);
-  tft.setCursor(6*8*text_size, 1*8*text_size);
-  tft.print(display_text.c_str());
-
-  display_text = "max:"+String(data.measurements.max_cell_voltage, 3);
-  tft.setCursor(6*8*text_size, 2*8*text_size);
-  tft.print(display_text.c_str());
-
-  display_text = "t1:"+String(data.measurements.module_temp_1, 1);
-  tft.setCursor(6*8*text_size, 3*8*text_size);
-  tft.print(display_text.c_str());
-
-  display_text = "t2:"+String(data.measurements.module_temp_2, 1);
-  tft.setCursor(6*8*text_size, 4*8*text_size);
-  tft.print(display_text.c_str());
-
-  display_text = "ti:"+String(data.measurements.chip_temp, 1);
-  tft.setCursor(6*8*text_size, 5*8*text_size);
-  tft.print(display_text.c_str());
-
-  //tft.drawLine(60,0,60, 128, ST77XX_WHITE);
-  //testdrawtext(display_text.c_str(), ST77XX_WHITE);
- 
+    clear();
 }
 
-void setup_display(void) {
-  // Use this initializer if you're using a 1.8" TFT
-  tft.initR(INITR_BLACKTAB);   // initialize a ST7735S chip, black tab
-  tft.fillScreen(ST77XX_BLACK);
+void Display::init() {
+    _tft.init();
+    _tft.fillScreen(_background_color);
+    _tft.setRotation(1);
+    _tft.setFreeFont(&Roboto_Mono_Light_13);
+}
+
+String Display::format(float value, uint8_t decplaces, float min, float max, String unit) {
+    if (value < max && value >= min) {
+        return String(value, decplaces) + unit;
+    } else {
+        return "invld";
+    }
+}
+
+String Display::format_temp(float value) {
+    return format(value, 1, -99.9, 99.9, "C");
+}
+
+String Display::format_cell_voltage(float value) {
+    return format(value, 3, 0, 9.999);
+}
+
+void Display::clear() {
+    for (auto& row : _screen_chars) {
+        for (auto& c : row) {
+            c = ' ';
+        }
+    }
+}
+
+void Display::print(uint8_t column, uint8_t row, String text) {
+    for (size_t x = column; x < _screen_chars[row].size(); x++) {
+        _screen_chars[row][x] = text[x - column];
+    }
+}
+
+void Display::flip() {
+    for (size_t row = 0; row < _screen_chars.size(); row++) {
+        for (size_t column = 0; column < _screen_chars[row].size(); column++) {
+            auto c_new = _screen_chars[row][column];
+            auto c_old = _old_chars[row][column];
+            if (c_new != c_old) {
+                // Paint over
+                _tft.setTextColor(_background_color);
+                _tft.setCursor(_char_width * column, (row + 1) * _char_height);
+                _tft.print(_old_chars[row][column]);
+
+                // Paint new
+                _tft.setTextColor(_text_color);
+                _tft.setCursor(_char_width * column, (row + 1) * _char_height);
+                _tft.print(_screen_chars[row][column]);
+            }
+        }
+    }
+
+    _old_chars = _screen_chars;
+    clear();
+}
+
+void Display::update(std::shared_ptr<BatteryMonitor> m) {
+    // Print Cell Voltages
+    auto& cell_voltages = m->cell_voltages();
+    for (size_t i = 0; i < cell_voltages.size(); i++) {
+        if (m->measure_error()) {
+            print(0, i, "-----");
+        } else {
+            String cell_voltage = format_cell_voltage(cell_voltages[i]);
+            print(0, i, cell_voltage);
+        }
+    }
+
+    // Print Balance Bits
+    auto& balance_bits = m->balance_bits();
+    for (size_t i = 0; i < balance_bits.size(); i++) {
+        if (balance_bits[i]) {
+            print(5, i, "-");
+        }
+    }
+
+    // Print Stats
+    String cell_diff = format_cell_voltage(m->cell_diff());
+    String soc = format(m->soc(), 1, -99.9, 999.9, "%");
+    String module_voltage = format(m->module_voltage(), 1, 0, 99.9, "V");
+    String min_cell_voltage = format_cell_voltage(m->min_voltage());
+    String avg_cell_voltage = format_cell_voltage(m->avg_voltage());
+    String max_cell_voltage = format_cell_voltage(m->max_voltage());
+    String module_temp_1 = format_temp(m->module_temp_1());
+    String module_temp_2 = format_temp(m->module_temp_2());
+    String chip_temp = format_temp(m->chip_temp());
+    String error_string = m->measure_error() ? "ERROR" : "";
+
+    if (m->measure_error()) {
+        min_cell_voltage = "-----";
+        max_cell_voltage = "-----";
+        avg_cell_voltage = "-----";
+        soc = "-----";
+        cell_diff = "-----";
+        module_voltage = "-----";
+    }
+
+    String cell_diff_trend;
+    if (m->cell_diff_trend().has_value()) {
+        cell_diff_trend = format(m->cell_diff_trend().value(), 0, -99, 99, "mVh");
+    } else {
+        cell_diff_trend = "-----";
+    }
+
+    print(7, 0, "Dif:" + cell_diff);
+    print(7, 1, "Tre:" + cell_diff_trend);
+    print(7, 2, "SOC:" + soc);
+    print(7, 3, "Mod:" + module_voltage);
+    print(7, 4, "Min:" + min_cell_voltage);
+    print(7, 5, "Avg:" + avg_cell_voltage);
+    print(7, 6, "Max:" + max_cell_voltage);
+    print(7, 7, "t1: " + module_temp_1);
+    print(7, 8, "t2: " + module_temp_2);
+    print(7, 9, "ti: " + chip_temp);
+    print(7, 11, error_string);
+
+    flip();
 }
