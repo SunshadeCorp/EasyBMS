@@ -30,9 +30,9 @@ std::shared_ptr<BatteryInterface> battery_interface;
     DEBUG_BEGIN(74880);
     DEBUG_PRINTLN("init");
 
-    // auto battery_interface = std::make_shared<SimulatedBattery>();
-    // battery_interface->scenario_everything_ok();
-    auto battery_interface = std::make_shared<LtcMebWrapper>();
+    auto battery_interface = std::make_shared<SimulatedBattery>();
+    battery_interface->scenario_random();
+    // auto battery_interface = std::make_shared<LtcMebWrapper>();
     battery_monitor = std::make_shared<BatteryMonitor>(battery_interface);
     battery_monitor->set_battery_config(battery_config);
     display = std::make_shared<Display>();

@@ -22,9 +22,10 @@ class SimulatedBattery : public BatteryInterface {
     void scenario_balance();
     void scenario_measure_error();
     void scenario_8s();
+    void scenario_random();
 
     void balance();
-    void wiggle();
+    std::array<float, 12> wiggle(std::array<float, 12> voltages);
 
    private:
     std::array<float, 12> _voltages;
