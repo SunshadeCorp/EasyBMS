@@ -57,10 +57,6 @@ void SimulatedBattery::scenario_8s() {
     _voltages[11] = 3.7;
 }
 
-void SimulatedBattery::scenario_measure_error() {
-    _measure_error = true;
-}
-
 void SimulatedBattery::scenario_random() {
     _voltages[0] = (3.5) + 0.3 * (static_cast<float>(rand()) / static_cast<float>(RAND_MAX));
     _voltages[1] = (3.5) + 0.3 * (static_cast<float>(rand()) / static_cast<float>(RAND_MAX));
@@ -74,6 +70,10 @@ void SimulatedBattery::scenario_random() {
     _voltages[9] = (3.5) + 0.3 * (static_cast<float>(rand()) / static_cast<float>(RAND_MAX));
     _voltages[10] = (3.5) + 0.3 * (static_cast<float>(rand()) / static_cast<float>(RAND_MAX));
     _voltages[11] = (3.5) + 0.3 * (static_cast<float>(rand()) / static_cast<float>(RAND_MAX));
+}
+
+void SimulatedBattery::scenario_measure_error() {
+    _measure_error = true;
 }
 
 float SimulatedBattery::module_temp_1() {
@@ -96,7 +96,7 @@ float SimulatedBattery::module_voltage() {
 void SimulatedBattery::balance() {
     for (size_t i = 0; i < 12; i++) {
         if (_balance_bits[i]) {
-            _voltages[i] = _voltages[i] * 0.99998;
+            _voltages[i] = _voltages[i] * 0.9998;
         }
     }
 }

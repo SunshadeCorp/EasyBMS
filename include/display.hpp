@@ -37,6 +37,7 @@ class Display {
     TFT_eSPI _tft;
 
     String format(float value, uint8_t decplaces, float min, float max, String unit = "");
+    String format(int value, int min, int max, String unit = "");
     String format_temp(float value);
     String format_cell_voltage(float value);
     void clear();

@@ -28,6 +28,14 @@ String Display::format(float value, uint8_t decplaces, float min, float max, Str
     }
 }
 
+String Display::format(int value, int min, int max, String unit) {
+    if (value < max && value >= min) {
+        return String(value) + unit;
+    } else {
+        return "invld";
+    }
+}
+
 String Display::format_temp(float value) {
     return format(value, 1, -99.9, 99.9, "C");
 }
