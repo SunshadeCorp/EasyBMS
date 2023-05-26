@@ -124,7 +124,8 @@ void Display::update(std::shared_ptr<BatteryMonitor> m) {
 
     String cell_diff_trend;
     if (m->cell_diff_trend().has_value()) {
-        cell_diff_trend = format(m->cell_diff_trend().value(), 0, -99, 99, "mVh");
+        int cell_diff_mv = static_cast<int>(m->cell_diff_trend().value() * 1000);
+        cell_diff_trend = format(cell_diff_mv, 0, -99, 99, "mVh");
     } else {
         cell_diff_trend = "-----";
     }
