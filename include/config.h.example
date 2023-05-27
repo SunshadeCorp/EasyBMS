@@ -4,7 +4,7 @@
 #include "battery_type.hpp"
 #include "balance_mode.hpp"
 
-BatteryConfig battery_type = BatteryConfig::mebAuto;
+BatteryConfig battery_config = BatteryConfig::mebAuto;
 BalanceMode bms_mode = BalanceMode::single;
 
 const char ssid[] = "WIFI_SSID";
