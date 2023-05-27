@@ -24,7 +24,7 @@ All BMS data is provided to MQTT
 - `cd EasyBMS-slave`
 - `git submodule init`
 - `git submodule update`
-- `cd src`
+- `cd include`
 - `cp config.h.example config.h`
 - edit `config.h` to your setup
 - build with Visual Studio Code and PlatformIO
