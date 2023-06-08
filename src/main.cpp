@@ -31,7 +31,7 @@ std::shared_ptr<BatteryInterface> battery_interface;
     DEBUG_PRINTLN("init");
 
     auto battery_interface = std::make_shared<SimulatedBattery>();
-    battery_interface->scenario_random();
+    battery_interface->scenario_everything_ok();
     // auto battery_interface = std::make_shared<LtcMebWrapper>();
     battery_monitor = std::make_shared<BatteryMonitor>(battery_interface);
     battery_monitor->set_battery_config(battery_config);
@@ -71,6 +71,8 @@ std::shared_ptr<BatteryInterface> battery_interface;
         balancer = std::make_shared<SingleModeBalancer>(60 * 1000, 10 * 1000);
     } else if (bms_mode == BalanceMode::slave && use_mqtt) {
         balancer = mqtt_adapter;
+    } else if (bms_mode == BalanceMode::none) {
+        balancer = nullptr;
     }
 
     bms->set_balancer(balancer);
