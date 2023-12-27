@@ -125,6 +125,12 @@ void MqttAdapter::publish(String topic) {
     auto m = _bms->battery_monitor();
     _mqtt->publish(topic + "/uptime", millis());
     _mqtt->publish(topic + "/pec15_error_count", m->measure_error_count());
+    _mqtt->publish(topic + "/battery_config", as_string(m->battery_config()));
+
+    // Don't send measurements if invalid
+    if (m->measure_error()) {
+        return;
+    }
 
     for (size_t i = 0; i < m->cell_voltages().size(); i++) {
         String cell_name = String(i + 1);
@@ -138,7 +144,6 @@ void MqttAdapter::publish(String topic) {
     _mqtt->publish(topic + "/module_temps", String(m->module_temp_1()) + "," + String(m->module_temp_2()));
     _mqtt->publish(topic + "/chip_temp", m->chip_temp());
     _mqtt->publish(topic + "/battery_type", as_string(m->battery_type()));
-    _mqtt->publish(topic + "/battery_config", as_string(m->battery_config()));
 }
 
 void MqttAdapter::update() {
@@ -151,13 +156,12 @@ void MqttAdapter::update() {
         }
     }
 
-    if (is_balancing) {
-        publish(_module_topic);
-    } else {
+    if (!is_balancing) {
         // Deprecated
         publish(_module_topic + "/accurate");
-        publish(_module_topic);
     }
+
+    publish(_module_topic);
 }
 
 String MqttAdapter::module_topic() const {
@@ -192,6 +196,12 @@ void MqttAdapter::on_mqtt_balance_request(String topic_string, String payload_st
     }
 
     time_ms balance_time = std::stoul(payload_string.c_str());
+
+    if (balance_time > 1000 * 60 * 5) {
+        DEBUG_PRINTLN(String("MQTT: Balance time too long (> 5 mins): ") + balance_time + "ms");
+        return;
+    }
+
     _balance_start_time[cell_id] = millis();
     _balance_duration[cell_id] = balance_time;
 }
