@@ -57,6 +57,21 @@ void SimulatedBattery::scenario_8s() {
     _voltages[11] = 3.7;
 }
 
+void SimulatedBattery::scenario_random() {
+    _voltages[0] = (3.5) + 0.3 * (static_cast<float>(rand()) / static_cast<float>(RAND_MAX));
+    _voltages[1] = (3.5) + 0.3 * (static_cast<float>(rand()) / static_cast<float>(RAND_MAX));
+    _voltages[2] = (3.5) + 0.3 * (static_cast<float>(rand()) / static_cast<float>(RAND_MAX));
+    _voltages[3] = (3.5) + 0.3 * (static_cast<float>(rand()) / static_cast<float>(RAND_MAX));
+    _voltages[4] = (3.5) + 0.3 * (static_cast<float>(rand()) / static_cast<float>(RAND_MAX));
+    _voltages[5] = (3.5) + 0.3 * (static_cast<float>(rand()) / static_cast<float>(RAND_MAX));
+    _voltages[6] = (3.5) + 0.3 * (static_cast<float>(rand()) / static_cast<float>(RAND_MAX));
+    _voltages[7] = (3.5) + 0.3 * (static_cast<float>(rand()) / static_cast<float>(RAND_MAX));
+    _voltages[8] = (3.5) + 0.3 * (static_cast<float>(rand()) / static_cast<float>(RAND_MAX));
+    _voltages[9] = (3.5) + 0.3 * (static_cast<float>(rand()) / static_cast<float>(RAND_MAX));
+    _voltages[10] = (3.5) + 0.3 * (static_cast<float>(rand()) / static_cast<float>(RAND_MAX));
+    _voltages[11] = (3.5) + 0.3 * (static_cast<float>(rand()) / static_cast<float>(RAND_MAX));
+}
+
 void SimulatedBattery::scenario_measure_error() {
     _measure_error = true;
 }
@@ -86,20 +101,21 @@ void SimulatedBattery::balance() {
     }
 }
 
-void SimulatedBattery::wiggle() {
-    float wiggle_room = 0.005;
+std::array<float, 12> SimulatedBattery::wiggle(std::array<float, 12> voltages) {
+    float wiggle_room = 0.0025;
     for (size_t i = 0; i < 12; i++) {
         float r = static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
-        if (_voltages[i] > 0.1) {
-            _voltages[i] += (r - 0.5) * wiggle_room;
+        if (voltages[i] > 0.1) {
+            voltages[i] += (r - 0.5) * wiggle_room;
         }
     }
+
+    return voltages;
 }
 
 std::array<float, 12> SimulatedBattery::cell_voltages() {
     balance();
-    wiggle();
-    return _voltages;
+    return wiggle(_voltages);
 }
 
 bool SimulatedBattery::balance_error() {

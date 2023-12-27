@@ -5,6 +5,8 @@ String as_string(BalanceMode bms_mode) {
         return "single";
     } else if (bms_mode == BalanceMode::slave) {
         return "slave";
+    } else if (bms_mode == BalanceMode::none) {
+        return "none";
     } else {
         return "invalid";
     }

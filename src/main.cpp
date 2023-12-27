@@ -71,6 +71,8 @@ std::shared_ptr<BatteryInterface> battery_interface;
         balancer = std::make_shared<SingleModeBalancer>(60 * 1000, 10 * 1000);
     } else if (bms_mode == BalanceMode::slave && use_mqtt) {
         balancer = mqtt_adapter;
+    } else if (bms_mode == BalanceMode::none) {
+        balancer = nullptr;
     }
 
     bms->set_balancer(balancer);
