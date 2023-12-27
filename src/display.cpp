@@ -131,15 +131,15 @@ void Display::update(std::shared_ptr<BatteryMonitor> m) {
     }
 
     print(7, 0, "Dif:" + cell_diff);
-    // print(7, 1, "Tre:" + cell_diff_trend);
-    print(7, 1, "SOC:" + soc);
-    print(7, 2, "Mod:" + module_voltage);
-    print(7, 3, "Min:" + min_cell_voltage);
-    print(7, 4, "Avg:" + avg_cell_voltage);
-    print(7, 5, "Max:" + max_cell_voltage);
-    print(7, 6, "t1: " + module_temp_1);
-    print(7, 7, "t2: " + module_temp_2);
-    print(7, 8, "ti: " + chip_temp);
+    print(7, 1, "Tre:" + cell_diff_trend);
+    print(7, 2, "SOC:" + soc);
+    print(7, 3, "Mod:" + module_voltage);
+    print(7, 4, "Min:" + min_cell_voltage);
+    print(7, 5, "Avg:" + avg_cell_voltage);
+    print(7, 6, "Max:" + max_cell_voltage);
+    print(7, 7, "t1: " + module_temp_1);
+    print(7, 8, "t2: " + module_temp_2);
+    print(7, 9, "ti: " + chip_temp);
     print(7, 11, error_string);
 
     flip();
