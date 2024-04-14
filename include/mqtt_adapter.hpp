@@ -16,7 +16,7 @@ using time_ms = unsigned long;
 
 class MqttAdapter : public IBalancer {
    public:
-    MqttAdapter(std::shared_ptr<BMS> bms, std::shared_ptr<IMqttClient> mqtt);
+    MqttAdapter(BMS* bms, IMqttClient* mqtt);
 
     void init();
     void reconnect();
@@ -29,8 +29,8 @@ class MqttAdapter : public IBalancer {
     String module_topic() const;
 
    private:
-    std::shared_ptr<BMS> _bms;
-    std::shared_ptr<IMqttClient> _mqtt;
+    BMS* _bms;
+    IMqttClient* _mqtt;
     static const time_ms MASTER_TIMEOUT = 5000;
     time_ms _last_connection = 0;
     String _hostname;

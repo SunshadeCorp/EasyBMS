@@ -10,7 +10,7 @@
 #define MINUTES (60 * SECONDS)
 #define HOURS (60 * MINUTES)
 
-BatteryMonitor::BatteryMonitor(std::shared_ptr<BatteryInterface> bat) {
+BatteryMonitor::BatteryMonitor(BatteryInterface* bat) {
     _cell_diff_trend = {};
     _bat = bat;
     _bat->init();

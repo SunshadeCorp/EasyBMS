@@ -81,11 +81,11 @@ void Display::flip() {
     clear();
 }
 
-void Display::update(std::shared_ptr<BatteryMonitor> m) {
+void Display::update(const BatteryMonitor& m) {
     // Print Cell Voltages
-    auto& cell_voltages = m->cell_voltages();
+    auto& cell_voltages = m.cell_voltages();
     for (size_t i = 0; i < cell_voltages.size(); i++) {
-        if (m->measure_error()) {
+        if (m.measure_error()) {
             print(0, i, "-----");
         } else {
             String cell_voltage = format_cell_voltage(cell_voltages[i]);
@@ -94,7 +94,7 @@ void Display::update(std::shared_ptr<BatteryMonitor> m) {
     }
 
     // Print Balance Bits
-    auto& balance_bits = m->balance_bits();
+    auto& balance_bits = m.balance_bits();
     for (size_t i = 0; i < balance_bits.size(); i++) {
         if (balance_bits[i]) {
             print(5, i, "-");
@@ -102,18 +102,18 @@ void Display::update(std::shared_ptr<BatteryMonitor> m) {
     }
 
     // Print Stats
-    String cell_diff = format_cell_voltage(m->cell_diff());
-    String soc = format(m->soc(), 1, -99.9, 999.9, "%");
-    String module_voltage = format(m->module_voltage(), 1, 0, 99.9, "V");
-    String min_cell_voltage = format_cell_voltage(m->min_voltage());
-    String avg_cell_voltage = format_cell_voltage(m->avg_voltage());
-    String max_cell_voltage = format_cell_voltage(m->max_voltage());
-    String module_temp_1 = format_temp(m->module_temp_1());
-    String module_temp_2 = format_temp(m->module_temp_2());
-    String chip_temp = format_temp(m->chip_temp());
-    String error_string = m->measure_error() ? "ERROR" : "";
+    String cell_diff = format_cell_voltage(m.cell_diff());
+    String soc = format(m.soc(), 1, -99.9, 999.9, "%");
+    String module_voltage = format(m.avg_voltage(), 1, 0, 99.9, "V");
+    String min_cell_voltage = format_cell_voltage(m.min_voltage());
+    String avg_cell_voltage = format_cell_voltage(m.avg_voltage());
+    String max_cell_voltage = format_cell_voltage(m.max_voltage());
+    String module_temp_1 = format_temp(m.module_temp_1());
+    String module_temp_2 = format_temp(m.module_temp_2());
+    String chip_temp = format_temp(m.chip_temp());
+    String error_string = m.measure_error() ? "ERROR" : "";
 
-    if (m->measure_error()) {
+    if (m.measure_error()) {
         min_cell_voltage = "-----";
         max_cell_voltage = "-----";
         avg_cell_voltage = "-----";
@@ -123,8 +123,8 @@ void Display::update(std::shared_ptr<BatteryMonitor> m) {
     }
 
     String cell_diff_trend;
-    if (m->cell_diff_trend().has_value()) {
-        int cell_diff_mv = static_cast<int>(m->cell_diff_trend().value() * 1000);
+    if (m.cell_diff_trend().has_value()) {
+        int cell_diff_mv = static_cast<int>(m.cell_diff_trend().value() * 1000);
         cell_diff_trend = format(cell_diff_mv, 0, -99, 99, "mVh");
     } else {
         cell_diff_trend = "-----";

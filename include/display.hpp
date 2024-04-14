@@ -22,7 +22,7 @@ class Display {
     void init();
 
     // Main function to print all BMS data
-    void update(std::shared_ptr<BatteryMonitor> monitor);
+    void update(const BatteryMonitor& monitor);
 
    private:
     const uint8_t _char_height = 10;
