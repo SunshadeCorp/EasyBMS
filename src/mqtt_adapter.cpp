@@ -9,7 +9,7 @@
 #include "version.h"
 #include "wifi.hpp"
 
-MqttAdapter::MqttAdapter(std::shared_ptr<BMS> bms, std::shared_ptr<IMqttClient> mqtt) {
+MqttAdapter::MqttAdapter(BMS* bms, IMqttClient* mqtt) {
     _bms = bms;
     _mqtt = mqtt;
 }

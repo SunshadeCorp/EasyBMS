@@ -32,23 +32,23 @@ BalanceMode BMS::mode() const {
     return _mode;
 }
 
-void BMS::set_balancer(std::shared_ptr<IBalancer> balancer) {
+void BMS::set_balancer(IBalancer* balancer) {
     _balancer = balancer;
 }
 
-void BMS::set_display(std::shared_ptr<Display> display) {
+void BMS::set_display(Display* display) {
     _display = display;
 }
 
-void BMS::set_mqtt_adapter(std::shared_ptr<MqttAdapter> mqtt_adapter) {
+void BMS::set_mqtt_adapter(MqttAdapter* mqtt_adapter) {
     _mqtt_adapter = mqtt_adapter;
 }
 
-void BMS::set_battery_monitor(std::shared_ptr<BatteryMonitor> battery_monitor) {
+void BMS::set_battery_monitor(BatteryMonitor* battery_monitor) {
     _battery_monitor = battery_monitor;
 }
 
-std::shared_ptr<const BatteryMonitor> BMS::battery_monitor() {
+const BatteryMonitor* BMS::battery_monitor() {
     return _battery_monitor;
 }
 
@@ -68,7 +68,7 @@ void BMS::loop() {
         }
 
         if (_display != nullptr) {
-            _display->update(_battery_monitor);
+            _display->update(*_battery_monitor);
         }
     }
 

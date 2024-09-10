@@ -12,7 +12,7 @@
 
 class BatteryMonitor {
    public:
-    BatteryMonitor(std::shared_ptr<BatteryInterface> bat);
+    BatteryMonitor(BatteryInterface* bat);
     void set_balance_bits(const std::vector<bool>& balance_bits);
     void measure();
     const std::vector<float>& cell_voltages() const;
@@ -39,7 +39,7 @@ class BatteryMonitor {
     void calc_cell_diff_trend();
     void detect_battery(const std::array<float, 12>& voltages);
 
-    std::shared_ptr<BatteryInterface> _bat;
+    BatteryInterface* _bat;
     BatteryConfig _battery_config;
     BatteryType _battery_type;
 
