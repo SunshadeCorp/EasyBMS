@@ -27,13 +27,11 @@ int MqttAdapter::cell_id_from_name(const String& cell_name) const {
 }
 
 String MqttAdapter::cpu_description() const {
-    return String(EspClass::getChipId(), HEX) + " " + EspClass::getCpuFreqMHz() + " MHz";
+    return String(ESP.getChipModel()) + " rev " + ESP.getChipRevision() + " " + ESP.getChipCores() + "x" + ESP.getCpuFreqMHz() + "MHz";
 }
 
 String MqttAdapter::flash_description() const {
-    return String(EspClass::getFlashChipId(), HEX) + ", " + (EspClass::getFlashChipSize() / 1024 / 1024) + " of " +
-           (EspClass::getFlashChipRealSize() / 1024 / 1024) + " MiB, Mode: " + EspClass::getFlashChipMode() +
-           ", Speed: " + (EspClass::getFlashChipSpeed() / 1000 / 1000) + " MHz, Vendor: " + String(EspClass::getFlashChipVendorId(), HEX);
+    return String(ESP.getFlashChipSize() / 1024 / 1024) + " MiB, Mode: " + ESP.getFlashChipMode();
 }
 
 void MqttAdapter::init() {
@@ -60,7 +58,7 @@ void MqttAdapter::reconnect() {
             _mqtt->publish(_mac_topic + "/build_timestamp", BUILD_TIMESTAMP);
             _mqtt->publish(_mac_topic + "/wifi", WiFi.SSID());
             _mqtt->publish(_mac_topic + "/ip", WiFi.localIP().toString());
-            _mqtt->publish(_mac_topic + "/esp_sdk", EspClass::getFullVersion());
+            _mqtt->publish(_mac_topic + "/esp_sdk", ESP.getSdkVersion());
             _mqtt->publish(_mac_topic + "/cpu", cpu_description());
             _mqtt->publish(_mac_topic + "/flash", flash_description());
             _mqtt->publish(_mac_topic + "/bms_mode", as_string(_bms->mode()));
@@ -238,7 +236,7 @@ void MqttAdapter::set_ota_server(String ota_server) {
     _ota_server = ota_server;
 }
 
-void MqttAdapter::set_ota_cert(const BearSSL::X509List* cert) {
+void MqttAdapter::set_ota_cert(const char* cert) {
     _ota_cert = cert;
 }
 

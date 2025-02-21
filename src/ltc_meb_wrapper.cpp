@@ -11,7 +11,7 @@ LtcMebWrapper::LtcMebWrapper() {
 }
 
 void LtcMebWrapper::init() {
-    _ltc.initSPI(D7, D6, D5);
+    _ltc.initSPI(2, 7, 6); // MOSI, MISO, SCLK
 }
 
 float LtcMebWrapper::raw_voltage_to_real_module_temp(float raw_voltage) {
@@ -22,9 +22,9 @@ void LtcMebWrapper::set_balance_bits(const std::bitset<12> &balance_bits) {
     _balance_error = false;
 
     if (_ltc.checkSPI(_debug_mode)) {
-        digitalWrite(D1, HIGH);
+        // digitalWrite(D1, HIGH); // LED1
     } else {
-        digitalWrite(D1, LOW);
+        // digitalWrite(D1, LOW); // LED1
     }
 
     _ltc.cfgSetRefOn(true);
@@ -32,9 +32,9 @@ void LtcMebWrapper::set_balance_bits(const std::bitset<12> &balance_bits) {
     _ltc.cfgSetVOV(4.2);
 
     if (balance_bits.any()) {
-        digitalWrite(D2, HIGH);
+        // digitalWrite(D2, HIGH); // LED2
     } else {
-        digitalWrite(D2, LOW);
+        // digitalWrite(D2, LOW); // LED2
     }
 
     _ltc.cfgSetDCC(balance_bits);

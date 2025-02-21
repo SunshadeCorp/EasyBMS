@@ -1,6 +1,5 @@
 #pragma once
 
-#include <BearSSLHelpers.h>
 #include <WString.h>
 
 #include <algorithm>
@@ -25,7 +24,7 @@ class MqttAdapter : public IBalancer {
     std::vector<bool> balance_bits() override;
     void update();
     void set_ota_server(String ota_server);
-    void set_ota_cert(const BearSSL::X509List* cert);
+    void set_ota_cert(const char* cert);
     String module_topic() const;
 
    private:
@@ -39,7 +38,7 @@ class MqttAdapter : public IBalancer {
     time_ms _last_master_uptime = 0;
     std::vector<time_ms> _balance_start_time{};
     std::vector<time_ms> _balance_duration{};
-    const BearSSL::X509List* _ota_cert;
+    const char* _ota_cert;
     String _ota_server;
 
     void on_mqtt_master_uptime(String topic_string, String payload_string);

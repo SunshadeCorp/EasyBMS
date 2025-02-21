@@ -1,8 +1,8 @@
 #include "wifi.hpp"
 
 #include <Arduino.h>
-#include <ESP8266WiFi.h>
-#include <ESP8266httpUpdate.h>
+#include <WiFi.h>
+#include <HTTPUpdate.h>
 #include <lwip/dns.h>
 
 #include "debug.hpp"
@@ -11,10 +11,10 @@ void connect_wifi(String hostname, String ssid, String password) {
     Serial.println();
     Serial.println("connecting to ");
     Serial.println(ssid);
-    ESP8266WiFiClass::persistent(false);
+    WiFi.persistent(false);
     WiFi.softAPdisconnect(true);
-    WiFi.mode(WIFI_STA);
-    WiFi.hostname(hostname);
+    WiFiClass::mode(WIFI_STA);
+    WiFiClass::hostname(hostname);
     WiFi.begin(ssid, password);
     while (WiFi.status() != WL_CONNECTED) {
         delay(100);
@@ -44,19 +44,19 @@ String mac_string() {
     return String(mac_string);
 }
 
-String perform_ota_update(String url, const BearSSL::X509List* cert) {
-    WiFiClientSecure client_secure;
-    client_secure.setTrustAnchors(cert);
-    client_secure.setTimeout(60);
-    ESPhttpUpdate.setLedPin(LED_BUILTIN, HIGH);
-    auto result = ESPhttpUpdate.update(client_secure, String("https://") + url);
+String perform_ota_update(String url, const char* cert) {
+    NetworkClientSecure client_secure;
+    client_secure.setCACert(cert);
+    client_secure.setTimeout(12000);
+    httpUpdate.setLedPin(LED_BUILTIN, HIGH);
+    auto result = httpUpdate.update(client_secure, String("https://") + url);
     String result_string;
     switch (result) {
         case HTTP_UPDATE_FAILED:
             result_string = String("HTTP_UPDATE_FAILED Error (");
-            result_string += ESPhttpUpdate.getLastError();
+            result_string += httpUpdate.getLastError();
             result_string += "): ";
-            result_string += ESPhttpUpdate.getLastErrorString();
+            result_string += httpUpdate.getLastErrorString();
             result_string += "\n";
             break;
         case HTTP_UPDATE_NO_UPDATES:

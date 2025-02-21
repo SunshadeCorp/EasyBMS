@@ -1,6 +1,6 @@
 #pragma once
 
-#include <ESP8266WiFi.h>
+#include <WiFi.h>
 #include <PubSubClient.h>
 #include <WString.h>
 
@@ -29,9 +29,9 @@ class MqttClient : public IMqttClient {
     void pub_sub_client_callback(char* topic, uint8_t* payload, unsigned int length);
 
 #if SSL_ENABLED
-    WiFiClientSecure espClient;
+    NetworkClientSecure _espClient;
 #else
-    WiFiClient _espClient;
+    NetworkClient _espClient;
 #endif
 
     PubSubClient _client;

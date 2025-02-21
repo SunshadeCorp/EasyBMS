@@ -24,7 +24,7 @@ float SOC::voltage_to_soc(float cell_voltage) {
         initialize_soc_data_points();
     }
 
-    for (size_t i = 0; i < soc_data_points.size() - 1; i++) {
+    for (std::size_t i = 0; i < soc_data_points.size() - 1; i++) {
         float lower_voltage = soc_data_points[i].first;
         float upper_voltage = soc_data_points[i + 1].first;
 
